@@ -521,6 +521,41 @@
   ],
   "damages": [
     {
+      "id": "dmg_1794818182386",
+      "tenantId": "usr_tenant_1",
+      "tenantName": "Priya Verma",
+      "unitId": "unit_302",
+      "unitNumber": "Flat 302",
+      "title": "Kitchen Sink Drain Pipe Leakage & S-Trap Crack",
+      "category": "Plumbing",
+      "severity": "Medium",
+      "incidentDate": "2026-11-16",
+      "reportedDate": "2026-11-16",
+      "description": "The PVC pipe beneath the kitchen sink cracked causing water spillage on modular wooden cabinet. Plumber replaced S-trap and pipe.",
+      "repairCost": 1450,
+      "costPayer": "landlord",
+      "status": "under_review",
+      "invoice": {
+        "invoiceNumber": "UC-BLR-2026-441",
+        "vendorName": "Urban Company Plumbing",
+        "vendorGstin": "Not Registered",
+        "invoiceDate": "2026-11-16",
+        "amount": 1450,
+        "fileUrl": "/uploads/file-1794818179929-768222648.pdf",
+        "fileName": "Internship Letter Achutha B.pdf",
+        "fileSize": "320 KB"
+      },
+      "photos": [
+        "https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=500&auto=format&fit=crop&q=80"
+      ],
+      "adminReview": {
+        "reviewedBy": null,
+        "reviewedAt": null,
+        "decision": null,
+        "notes": "Submitted by tenant. Awaiting landlord inspection."
+      }
+    },
+    {
       "id": "dmg_201",
       "tenantId": "usr_tenant_1",
       "tenantName": "Priya Verma",
@@ -751,6 +786,18 @@
     }
   ],
   "notifications": [
+    {
+      "id": "notif_1794818182386",
+      "userId": "usr_admin",
+      "title": "New Damage & Repair Claim",
+      "message": "Priya Verma reported: \"Kitchen Sink Drain Pipe Leakage & S-Trap Crack\" (Cost: ₹1,450) with invoice.",
+      "type": "damage_claim",
+      "severity": "warning",
+      "read": false,
+      "createdAt": "2026-11-16T08:36:22.421Z",
+      "actionUrl": "/damages",
+      "actionText": "Review Invoice"
+    },
     {
       "id": "notif_1794816959509_0.01891594964663501",
       "userId": "usr_tenant_2",

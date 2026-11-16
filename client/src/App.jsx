@@ -17,6 +17,7 @@ import RentPaymentModal from './components/RentPaymentModal';
 import HraReceiptModal from './components/HraReceiptModal';
 import ReportDamageModal from './components/ReportDamageModal';
 import ReviewDamageModal from './components/ReviewDamageModal';
+import InvoiceViewerModal from './components/InvoiceViewerModal';
 import RegisterMeterModal from './components/RegisterMeterModal';
 import AddReadingModal from './components/AddReadingModal';
 import PayUtilityModal from './components/PayUtilityModal';
@@ -47,6 +48,7 @@ export default function App() {
   const [viewingHraReceipt, setViewingHraReceipt] = useState(null);
   const [showReportDamage, setShowReportDamage] = useState(false);
   const [reviewingDamage, setReviewingDamage] = useState(null);
+  const [viewingInvoiceDamage, setViewingInvoiceDamage] = useState(null);
   const [showRegisterMeter, setShowRegisterMeter] = useState(false);
   const [showAddReading, setShowAddReading] = useState(false);
   const [payingBill, setPayingBill] = useState(null);
@@ -347,6 +349,7 @@ export default function App() {
             }}
             onOpenReportDamage={() => setShowReportDamage(true)}
             onOpenAgreementViewer={(agr) => setViewingAgreement(agr)}
+            onOpenViewInvoice={(dmg) => setViewingInvoiceDamage(dmg)}
             onSendRentReminders={handleSendRentReminders}
           />
         )}
@@ -392,6 +395,7 @@ export default function App() {
             damages={damages}
             currentUser={currentUser}
             onOpenReportDamage={() => setShowReportDamage(true)}
+            onOpenViewInvoice={(dmg) => setViewingInvoiceDamage(dmg)}
             onOpenReviewDamage={(dmg) => {
               if (!isAdmin) {
                 alert('Access Denied: Only Landlord Administrator can review and reimburse damage claims.');
@@ -469,6 +473,14 @@ export default function App() {
           damage={reviewingDamage}
           onClose={() => setReviewingDamage(null)}
           onReviewSubmit={handleReviewDamage}
+          onOpenViewInvoice={(dmg) => setViewingInvoiceDamage(dmg)}
+        />
+      )}
+
+      {viewingInvoiceDamage && (
+        <InvoiceViewerModal
+          damage={viewingInvoiceDamage}
+          onClose={() => setViewingInvoiceDamage(null)}
         />
       )}
 

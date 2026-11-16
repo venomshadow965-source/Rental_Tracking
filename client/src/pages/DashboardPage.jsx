@@ -31,6 +31,7 @@ export default function DashboardPage({
   onOpenCreateAgreement,
   onOpenReportDamage,
   onOpenAgreementViewer,
+  onOpenViewInvoice,
   onSendRentReminders
 }) {
   const isAdmin = currentUser?.role === 'admin';
@@ -378,7 +379,7 @@ export default function DashboardPage({
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between sm:flex-col sm:items-end gap-1 flex-shrink-0">
+                  <div className="flex items-center justify-between sm:flex-col sm:items-end gap-1.5 flex-shrink-0">
                     <span className="text-sm font-black text-slate-900">₹{dmg.repairCost?.toLocaleString('en-IN')}</span>
                     <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
                       dmg.status === 'reimbursed' ? 'bg-emerald-100 text-emerald-800' :
@@ -388,6 +389,15 @@ export default function DashboardPage({
                     }`}>
                       {dmg.status.replace(/_/g, ' ')}
                     </span>
+                    {dmg.invoice && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenViewInvoice && onOpenViewInvoice(dmg)}
+                        className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 underline mt-0.5"
+                      >
+                        View Invoice →
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

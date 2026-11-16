@@ -14,7 +14,8 @@ import {
 export default function ReviewDamageModal({ 
   damage, 
   onClose, 
-  onReviewSubmit 
+  onReviewSubmit,
+  onOpenViewInvoice
 }) {
   const [status, setStatus] = useState('approved');
   const [notes, setNotes] = useState('Approved by landlord. Legitimate repair expense.');
@@ -88,17 +89,24 @@ export default function ReviewDamageModal({
 
             {/* Attached Invoice */}
             {damage.invoice && (
-              <div className="mt-3 pt-3 border-t border-slate-200 flex items-center justify-between text-xs bg-white p-3 rounded-lg border border-slate-200">
-                <div className="flex items-center space-x-2">
-                  <FileText className="w-4 h-4 text-emerald-600" />
-                  <div>
-                    <span className="font-bold text-slate-800">{damage.invoice.vendorName}</span>
-                    <span className="text-slate-400 text-[11px] block">Inv: {damage.invoice.invoiceNumber} • ₹{damage.invoice.amount?.toLocaleString('en-IN')}</span>
+              <div className="mt-3 pt-3 border-t border-slate-200 bg-white p-3.5 rounded-xl border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center space-x-2">
+                    <FileText className="w-4 h-4 text-emerald-600" />
+                    <div>
+                      <span className="font-bold text-slate-800">{damage.invoice.vendorName}</span>
+                      <span className="text-slate-400 text-[11px] block">Inv: {damage.invoice.invoiceNumber} • ₹{damage.invoice.amount?.toLocaleString('en-IN')}</span>
+                    </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => onOpenViewInvoice && onOpenViewInvoice(damage)}
+                    className="text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center space-x-1.5 transition-colors"
+                  >
+                    <span>View Full Invoice & Photos</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-                <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200">
-                  Verified Invoice
-                </span>
               </div>
             )}
           </div>
