@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
-import { 
-  X, 
-  AlertTriangle, 
-  CheckCircle2, 
-  XCircle, 
-  DollarSign, 
-  FileText, 
+import {
+  X,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  DollarSign,
+  FileText,
   ExternalLink,
   ShieldAlert,
   ArrowRight
 } from 'lucide-react';
 
-export default function ReviewDamageModal({ 
-  damage, 
-  onClose, 
+export default function ReviewDamageModal({
+  damage,
+  onClose,
   onReviewSubmit,
   onOpenViewInvoice
 }) {
@@ -45,7 +45,7 @@ export default function ReviewDamageModal({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex justify-center p-3 sm:p-6 animate-in fade-in duration-200">
       <div className="relative bg-white w-full max-w-xl rounded-2xl shadow-2xl border border-slate-200 flex flex-col my-auto max-h-[92vh]">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/80 rounded-t-2xl">
           <div className="flex items-center space-x-3">
@@ -123,11 +123,10 @@ export default function ReviewDamageModal({
                   setStatus('approved');
                   setNotes('Approved by landlord. Reimbursement scheduled.');
                 }}
-                className={`p-3 rounded-xl border text-left transition-all ${
-                  status === 'approved'
+                className={`p-3 rounded-xl border text-left transition-all ${status === 'approved'
                     ? 'border-emerald-600 bg-emerald-50 text-emerald-900 font-bold ring-1 ring-emerald-600'
                     : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-                }`}
+                  }`}
               >
                 <div className="flex items-center space-x-1.5 text-xs font-bold">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -142,11 +141,10 @@ export default function ReviewDamageModal({
                   setStatus('reimbursed');
                   setNotes('Amount credited directly to tenant account via UPI.');
                 }}
-                className={`p-3 rounded-xl border text-left transition-all ${
-                  status === 'reimbursed'
+                className={`p-3 rounded-xl border text-left transition-all ${status === 'reimbursed'
                     ? 'border-emerald-600 bg-emerald-50 text-emerald-900 font-bold ring-1 ring-emerald-600'
                     : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-                }`}
+                  }`}
               >
                 <div className="flex items-center space-x-1.5 text-xs font-bold">
                   <DollarSign className="w-4 h-4 text-emerald-600" />
@@ -161,11 +159,10 @@ export default function ReviewDamageModal({
                   setStatus('deducted_from_deposit');
                   setNotes('Damage caused by tenant. Deducted from security deposit.');
                 }}
-                className={`p-3 rounded-xl border text-left transition-all ${
-                  status === 'deducted_from_deposit'
+                className={`p-3 rounded-xl border text-left transition-all ${status === 'deducted_from_deposit'
                     ? 'border-amber-600 bg-amber-50 text-amber-900 font-bold ring-1 ring-amber-600'
                     : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-                }`}
+                  }`}
               >
                 <div className="flex items-center space-x-1.5 text-xs font-bold">
                   <AlertTriangle className="w-4 h-4 text-amber-600" />
@@ -180,11 +177,10 @@ export default function ReviewDamageModal({
                   setStatus('rejected');
                   setNotes('Claim rejected: Issue falls under tenant routine consumables/wear.');
                 }}
-                className={`p-3 rounded-xl border text-left transition-all ${
-                  status === 'rejected'
+                className={`p-3 rounded-xl border text-left transition-all ${status === 'rejected'
                     ? 'border-rose-600 bg-rose-50 text-rose-900 font-bold ring-1 ring-rose-600'
                     : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-                }`}
+                  }`}
               >
                 <div className="flex items-center space-x-1.5 text-xs font-bold">
                   <XCircle className="w-4 h-4 text-rose-600" />

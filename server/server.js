@@ -965,6 +965,20 @@ if (fs.existsSync(clientDist)) {
   });
 }
 
-app.listen(PORT, () => {
-  console.log(`KirayaSetu Backend Server running on port ${PORT}`);
+const server = app.listen(PORT, () => {
+  console.log(`\n======================================================`);
+  console.log(`  KirayaSetu Backend Server running on port ${PORT}`);
+  console.log(`  Open in browser: http://localhost:${PORT}`);
+  console.log(`======================================================\n`);
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n[PORT CONFLICT] Port ${PORT} is already in use by another running instance.`);
+    console.error(`To clear port ${PORT} in PowerShell, run:`);
+    console.error(`Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force\n`);
+  } else {
+    console.error('Server error:', err);
+  }
+  process.exit(1);
 });
