@@ -11,17 +11,21 @@ import {
   Building, 
   User, 
   CreditCard,
-  Fingerprint
+  Fingerprint,
+  UserCheck,
+  ArrowRight
 } from 'lucide-react';
 
 export default function AgreementsPage({
   agreements,
   currentUser,
+  users = [],
   onOpenCreateAgreement,
   onOpenAgreementViewer
 }) {
   const isAdmin = currentUser?.role === 'admin';
   const [filter, setFilter] = useState('all'); // all, executed, sent_to_tenant
+  const tenants = users.filter(u => u.role === 'tenant');
 
   const filteredAgreements = agreements.filter(a => {
     if (filter === 'executed') return a.status === 'executed';
@@ -50,7 +54,7 @@ export default function AgreementsPage({
 
         {isAdmin && (
           <button
-            onClick={onOpenCreateAgreement}
+            onClick={() => onOpenCreateAgreement()}
             className="flex items-center space-x-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-md shadow-emerald-600/20 transition-all whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
@@ -58,6 +62,94 @@ export default function AgreementsPage({
           </button>
         )}
       </div>
+
+      {/* Landlord Console: Registered Tenants & Direct Make Agreement Section */}
+      {isAdmin && tenants.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center space-x-2.5">
+              <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
+                <UserCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  Registered Tenants & Agreement Actions
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Select any newly registered or existing tenant to draft their official e-Stamp agreement with verified Aadhaar
+                </p>
+              </div>
+            </div>
+            <span className="text-xs bg-slate-100 text-slate-700 font-bold px-3 py-1 rounded-full self-start sm:self-auto">
+              {tenants.length} Registered Tenants
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
+            {tenants.map(tenant => {
+              const agreement = agreements.find(a => a.tenantId === tenant.id);
+              const hasExecuted = agreement?.status === 'executed';
+              const hasPending = agreement && agreement.status !== 'executed';
+
+              return (
+                <div 
+                  key={tenant.id}
+                  className="p-4 rounded-xl border border-slate-200 hover:border-emerald-300 bg-slate-50/70 hover:bg-emerald-50/30 transition-all flex flex-col justify-between space-y-3"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900">{tenant.name}</h4>
+                        <p className="text-xs text-slate-500 font-medium">{tenant.unitNumber} • {tenant.propertyName}</p>
+                      </div>
+                      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                        hasExecuted ? 'bg-emerald-100 text-emerald-800' :
+                        hasPending ? 'bg-amber-100 text-amber-800' :
+                        'bg-rose-100 text-rose-800'
+                      }`}>
+                        {hasExecuted ? 'Active Contract' : hasPending ? 'Pending Sign' : 'Needs Agreement'}
+                      </span>
+                    </div>
+
+                    <div className="text-xs font-mono text-slate-600 space-y-0.5 pt-1.5 border-t border-slate-200/80">
+                      <div>Aadhaar: <span className="font-bold text-emerald-900">{tenant.aadhaar}</span></div>
+                      <div>Phone: {tenant.phone}</div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2.5 border-t border-slate-200 flex items-center justify-between gap-2">
+                    {agreement ? (
+                      <button
+                        type="button"
+                        onClick={() => onOpenAgreementViewer(agreement)}
+                        className="text-xs text-slate-700 hover:text-emerald-700 font-bold flex items-center space-x-1"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>View Contract</span>
+                      </button>
+                    ) : (
+                      <span className="text-[11px] text-slate-400 italic">No contract yet</span>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => onOpenCreateAgreement(tenant.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 ${
+                        hasExecuted 
+                          ? 'bg-slate-200 hover:bg-slate-300 text-slate-800'
+                          : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/20'
+                      }`}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>{hasExecuted ? 'Renew Agreement' : 'Make Agreement'}</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Filter Tabs */}
       <div className="flex items-center space-x-2 border-b border-slate-200 pb-2">

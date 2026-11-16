@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { 
-  X, 
-  Printer, 
-  Download, 
-  FileText, 
-  Building, 
-  CheckCircle2, 
-  Wrench, 
-  Receipt, 
-  Calendar, 
+import {
+  X,
+  Printer,
+  Download,
+  FileText,
+  Building,
+  CheckCircle2,
+  Wrench,
+  Receipt,
+  Calendar,
   Image as ImageIcon,
   ExternalLink,
   ShieldCheck,
@@ -24,7 +24,7 @@ export default function InvoiceViewerModal({ damage, onClose }) {
   const hasUploadedFile = Boolean(inv.fileUrl);
   const isPdf = inv.fileUrl && (inv.fileUrl.toLowerCase().endsWith('.pdf') || inv.fileName?.toLowerCase().endsWith('.pdf'));
   const isImage = inv.fileUrl && (
-    inv.fileUrl.match(/\.(jpeg|jpg|png|webp|gif)$/i) || 
+    inv.fileUrl.match(/\.(jpeg|jpg|png|webp|gif)$/i) ||
     inv.fileName?.match(/\.(jpeg|jpg|png|webp|gif)$/i) ||
     inv.fileUrl.startsWith('data:image')
   );
@@ -71,9 +71,9 @@ export default function InvoiceViewerModal({ damage, onClose }) {
   const lineItems = getLineItems();
 
   return (
-    <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-900/75 backdrop-blur-md flex justify-center p-2 sm:p-4 md:p-6 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/75 backdrop-blur-md flex justify-center p-2 sm:p-4 md:p-6 animate-in fade-in duration-200">
       <div className="relative bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 flex flex-col my-auto max-h-[96vh] overflow-hidden">
-        
+
         {/* Top Control Bar */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/90 rounded-t-2xl no-print">
           <div className="flex items-center space-x-3">
@@ -129,11 +129,10 @@ export default function InvoiceViewerModal({ damage, onClose }) {
           {hasUploadedFile && (
             <button
               onClick={() => setActiveTab('file')}
-              className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                activeTab === 'file'
-                  ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
+              className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'file'
+                ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
             >
               <FileCheck className="w-4 h-4" />
               <span>Original Uploaded File ({inv.fileName || 'repair_bill.pdf'})</span>
@@ -142,11 +141,10 @@ export default function InvoiceViewerModal({ damage, onClose }) {
 
           <button
             onClick={() => setActiveTab('breakdown')}
-            className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              activeTab === 'breakdown'
-                ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
+            className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'breakdown'
+              ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
           >
             <Receipt className="w-4 h-4" />
             <span>Structured Tax Invoice & Line Items</span>
@@ -155,11 +153,10 @@ export default function InvoiceViewerModal({ damage, onClose }) {
           {damage.photos && damage.photos.length > 0 && (
             <button
               onClick={() => setActiveTab('photos')}
-              className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                activeTab === 'photos'
-                  ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
+              className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'photos'
+                ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
             >
               <ImageIcon className="w-4 h-4" />
               <span>Site Photos ({damage.photos.length})</span>
@@ -169,11 +166,11 @@ export default function InvoiceViewerModal({ damage, onClose }) {
 
         {/* Modal Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-100/50">
-          
+
           {/* TAB 1: THE ACTUAL UPLOADED FILE (PDF / IMAGE) */}
           {activeTab === 'file' && hasUploadedFile && (
             <div className="space-y-4">
-              
+
               {/* File details banner */}
               <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center space-x-3">
@@ -215,43 +212,22 @@ export default function InvoiceViewerModal({ damage, onClose }) {
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-2">
                 {isImage ? (
                   <div className="text-center p-4">
-                    <img 
-                      src={inv.fileUrl} 
-                      alt={inv.fileName || 'Uploaded Invoice'} 
+                    <img
+                      src={inv.fileUrl}
+                      alt={inv.fileName || 'Uploaded Invoice'}
                       className="max-h-[650px] mx-auto rounded-xl object-contain border border-slate-200 shadow-md"
                     />
                   </div>
                 ) : (
                   <div className="relative">
                     <iframe
-                      src={`${inv.fileUrl}#toolbar=1`}
+                      src={inv.fileUrl}
                       title={inv.fileName || 'Invoice Document'}
                       className="w-full h-[650px] rounded-xl border border-slate-300 bg-slate-50"
                     />
-                    <div className="p-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-600 flex flex-col sm:flex-row items-center justify-between gap-2">
-                      <div className="flex items-center space-x-2">
-                        <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                        <span>Viewing file: <strong>{inv.fileName}</strong></span>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <a
-                          href={inv.fileUrl}
-                          download={inv.fileName || 'invoice.pdf'}
-                          className="text-slate-700 hover:text-slate-900 font-bold underline flex items-center space-x-1"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          <span>Download File</span>
-                        </a>
-                        <a
-                          href={inv.fileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-emerald-700 hover:text-emerald-800 font-bold underline flex items-center space-x-1"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                          <span>Open in Separate Tab</span>
-                        </a>
-                      </div>
+                    <div className="p-3 bg-slate-50 border-t border-slate-200 text-center text-xs text-slate-600 flex items-center justify-center space-x-2">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                      <span>Original file directly rendered from server. Click "View Fullscreen" if your browser restricts iframe PDF view.</span>
                     </div>
                   </div>
                 )}
@@ -263,7 +239,7 @@ export default function InvoiceViewerModal({ damage, onClose }) {
           {/* TAB 2: STRUCTURED DIGITAL INVOICE CARD */}
           {activeTab === 'breakdown' && (
             <div className="max-w-2xl mx-auto border border-slate-300 rounded-2xl p-6 sm:p-8 bg-white shadow-sm space-y-6 printable-area text-slate-900 text-xs">
-              
+
               {/* Header: Vendor Details */}
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-6 border-b-2 border-slate-200">
                 <div className="space-y-1">

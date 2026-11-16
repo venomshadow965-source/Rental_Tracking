@@ -1,18 +1,17 @@
 import React, { useState } from 'react';
-import { 
-  AlertTriangle, 
-  Plus, 
-  FileText, 
-  DollarSign, 
-  CheckCircle2, 
-  Clock, 
-  XCircle, 
-  ExternalLink, 
+import {
+  AlertTriangle,
+  Plus,
+  FileText,
+  DollarSign,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  ExternalLink,
   Image as ImageIcon,
   ShieldCheck,
   User,
-  Building,
-  Eye
+  Building
 } from 'lucide-react';
 
 export default function DamagesPage({
@@ -39,7 +38,7 @@ export default function DamagesPage({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
-      
+
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div className="space-y-1">
@@ -98,31 +97,28 @@ export default function DamagesPage({
       <div className="flex items-center space-x-2 border-b border-slate-200 pb-2">
         <button
           onClick={() => setFilter('all')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-            filter === 'all'
-              ? 'bg-slate-900 text-white'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${filter === 'all'
+            ? 'bg-slate-900 text-white'
+            : 'text-slate-600 hover:bg-slate-100'
+            }`}
         >
           All Claims ({damages.length})
         </button>
         <button
           onClick={() => setFilter('under_review')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-            filter === 'under_review'
-              ? 'bg-amber-600 text-white'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${filter === 'under_review'
+            ? 'bg-amber-600 text-white'
+            : 'text-slate-600 hover:bg-slate-100'
+            }`}
         >
           Under Review ({damages.filter(d => d.status === 'under_review').length})
         </button>
         <button
           onClick={() => setFilter('reimbursed')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-            filter === 'reimbursed'
-              ? 'bg-emerald-600 text-white'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${filter === 'reimbursed'
+            ? 'bg-emerald-600 text-white'
+            : 'text-slate-600 hover:bg-slate-100'
+            }`}
         >
           Reimbursed ({damages.filter(d => d.status === 'reimbursed').length})
         </button>
@@ -151,13 +147,12 @@ export default function DamagesPage({
                     <h3 className="text-base font-bold text-slate-900 mt-1.5">{dmg.title}</h3>
                   </div>
 
-                  <span className={`text-[11px] font-bold uppercase px-2.5 py-1 rounded-full ${
-                    dmg.status === 'reimbursed' ? 'bg-emerald-100 text-emerald-800' :
+                  <span className={`text-[11px] font-bold uppercase px-2.5 py-1 rounded-full ${dmg.status === 'reimbursed' ? 'bg-emerald-100 text-emerald-800' :
                     dmg.status === 'approved' ? 'bg-blue-100 text-blue-800' :
-                    dmg.status === 'deducted_from_deposit' ? 'bg-amber-100 text-amber-800' :
-                    dmg.status === 'rejected' ? 'bg-rose-100 text-rose-800' :
-                    'bg-slate-100 text-slate-700 animate-pulse'
-                  }`}>
+                      dmg.status === 'deducted_from_deposit' ? 'bg-amber-100 text-amber-800' :
+                        dmg.status === 'rejected' ? 'bg-rose-100 text-rose-800' :
+                          'bg-slate-100 text-slate-700 animate-pulse'
+                    }`}>
                     {dmg.status.replace(/_/g, ' ')}
                   </span>
                 </div>
@@ -169,7 +164,7 @@ export default function DamagesPage({
 
                 {/* Attached Invoice Box */}
                 {dmg.invoice ? (
-                  <div 
+                  <div
                     onClick={() => onOpenViewInvoice && onOpenViewInvoice(dmg)}
                     className="p-3.5 bg-emerald-50/40 hover:bg-emerald-50 rounded-xl border border-emerald-200/80 hover:border-emerald-400 text-xs space-y-2 cursor-pointer transition-all group"
                   >
@@ -255,24 +250,11 @@ export default function DamagesPage({
                     <button
                       type="button"
                       onClick={() => onOpenViewInvoice && onOpenViewInvoice(dmg)}
-                      className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-lg text-xs border border-emerald-300 transition-colors flex items-center space-x-1.5 shadow-sm"
+                      className="px-3 py-1.5 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 font-bold rounded-lg text-xs border border-slate-200 transition-colors flex items-center space-x-1"
                     >
-                      <Eye className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>{dmg.invoice.fileName ? 'View Uploaded Invoice' : 'View Invoice'}</span>
+                      <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>View Invoice</span>
                     </button>
-                  )}
-
-                  {dmg.invoice?.fileUrl && (
-                    <a
-                      href={dmg.invoice.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs border border-slate-300 transition-colors flex items-center space-x-1 font-semibold"
-                      title="Open file directly in new browser tab"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Open File</span>
-                    </a>
                   )}
 
                   {isAdmin && (

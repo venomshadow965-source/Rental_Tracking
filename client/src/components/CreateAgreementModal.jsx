@@ -9,7 +9,8 @@ import {
   ShieldCheck, 
   Zap, 
   Droplets,
-  HelpCircle
+  HelpCircle,
+  CheckCircle2
 } from 'lucide-react';
 
 export default function CreateAgreementModal({ 
@@ -17,26 +18,32 @@ export default function CreateAgreementModal({
   onSubmit, 
   properties, 
   units, 
-  users 
+  users,
+  initialTenantId = null
 }) {
   const tenants = users.filter(u => u.role === 'tenant');
   const adminUser = users.find(u => u.role === 'admin');
 
-  // Form State
-  const [selectedTenantId, setSelectedTenantId] = useState(tenants[0]?.id || '');
-  const [selectedUnitId, setSelectedUnitId] = useState(units[0]?.id || '');
-  
-  const [tenantName, setTenantName] = useState(tenants[0]?.name || '');
-  const [tenantFatherName, setTenantFatherName] = useState('');
-  const [tenantAadhaar, setTenantAadhaar] = useState(tenants[0]?.aadhaar || '');
-  const [tenantPan, setTenantPan] = useState(tenants[0]?.pan || '');
-  const [tenantPhone, setTenantPhone] = useState(tenants[0]?.phone || '');
-  const [tenantEmail, setTenantEmail] = useState(tenants[0]?.email || '');
-  const [tenantPermanentAddress, setTenantPermanentAddress] = useState(tenants[0]?.permanentAddress || '');
+  // If a specific tenant was requested (e.g. from registration notification), preselect them
+  const targetTenant = (initialTenantId && tenants.find(t => t.id === initialTenantId)) || tenants[0];
+  const initialUnitId = targetTenant?.assignedUnitId || units[0]?.id || '';
+  const initialUnit = units.find(u => u.id === initialUnitId) || units[0];
 
-  const [monthlyRent, setMonthlyRent] = useState(units[0]?.rent || 20000);
-  const [securityDeposit, setSecurityDeposit] = useState(units[0]?.deposit || 100000);
-  const [maintenanceCharges, setMaintenanceCharges] = useState(units[0]?.maintenance || 2000);
+  // Form State
+  const [selectedTenantId, setSelectedTenantId] = useState(targetTenant?.id || '');
+  const [selectedUnitId, setSelectedUnitId] = useState(initialUnitId);
+  
+  const [tenantName, setTenantName] = useState(targetTenant?.name || '');
+  const [tenantFatherName, setTenantFatherName] = useState('');
+  const [tenantAadhaar, setTenantAadhaar] = useState(targetTenant?.aadhaar || '');
+  const [tenantPan, setTenantPan] = useState(targetTenant?.pan || '');
+  const [tenantPhone, setTenantPhone] = useState(targetTenant?.phone || '');
+  const [tenantEmail, setTenantEmail] = useState(targetTenant?.email || '');
+  const [tenantPermanentAddress, setTenantPermanentAddress] = useState(targetTenant?.permanentAddress || '');
+
+  const [monthlyRent, setMonthlyRent] = useState(targetTenant?.monthlyRent || initialUnit?.rent || 20000);
+  const [securityDeposit, setSecurityDeposit] = useState(targetTenant?.securityDeposit || initialUnit?.deposit || 100000);
+  const [maintenanceCharges, setMaintenanceCharges] = useState(targetTenant?.maintenance || initialUnit?.maintenance || 2000);
   const [termMonths, setTermMonths] = useState(11);
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(
@@ -213,6 +220,16 @@ export default function CreateAgreementModal({
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-semibold">
               {error}
+            </div>
+          )}
+
+          {initialTenantId && targetTenant && (
+            <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-xl flex items-center space-x-3 text-xs text-emerald-950">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+              <div>
+                <span className="font-bold">Newly Registered Tenant Auto-Selected:</span>{' '}
+                <span>{targetTenant.name} ({targetTenant.unitNumber || 'Assigned Unit'}) • Verified Aadhaar: <strong className="font-mono">{targetTenant.aadhaar}</strong></span>
+              </div>
             </div>
           )}
 

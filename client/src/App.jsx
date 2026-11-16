@@ -44,6 +44,7 @@ export default function App() {
   // Modals
   const [viewingAgreement, setViewingAgreement] = useState(null);
   const [showCreateAgreement, setShowCreateAgreement] = useState(false);
+  const [targetTenantForAgreement, setTargetTenantForAgreement] = useState(null);
   const [payingInvoice, setPayingInvoice] = useState(null);
   const [viewingHraReceipt, setViewingHraReceipt] = useState(null);
   const [showReportDamage, setShowReportDamage] = useState(false);
@@ -241,6 +242,28 @@ export default function App() {
     return res;
   };
 
+  // Periodic background sync for real-time notifications & registered tenants
+  useEffect(() => {
+    if (!currentUser) return;
+    const interval = setInterval(async () => {
+      try {
+        const notifsRes = await api.getNotifications();
+        if (notifsRes.success) setNotifications(notifsRes.notifications);
+        if (currentUser.role === 'admin') {
+          const [usersRes, agrsRes] = await Promise.all([
+            api.getUsers(),
+            api.getAgreements()
+          ]);
+          if (usersRes.success) setUsers(usersRes.users);
+          if (agrsRes.success) setAgreements(agrsRes.agreements);
+        }
+      } catch (err) {
+        // silent sync catch
+      }
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
   // Notifications
   const handleMarkNotifRead = async (id) => {
     await api.markNotificationRead(id);
@@ -252,11 +275,21 @@ export default function App() {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
-  const handleNotificationAction = (url) => {
-    if (url === '/payments') setActiveTab('payments');
-    else if (url === '/agreements') setActiveTab('agreements');
-    else if (url === '/utilities') setActiveTab('utilities');
-    else if (url === '/damages') setActiveTab('damages');
+  const handleNotificationAction = (url, notif = null) => {
+    if ((notif && (notif.type === 'tenant_registered' || notif.tenantId)) || (url && url.includes('createTenant'))) {
+      const tenantId = notif?.tenantId || (url && url.split('createTenant=')[1]);
+      setActiveTab('agreements');
+      if (currentUser?.role === 'admin') {
+        setTargetTenantForAgreement(tenantId);
+        setShowCreateAgreement(true);
+      }
+      return;
+    }
+
+    if (url?.startsWith('/payments')) setActiveTab('payments');
+    else if (url?.startsWith('/agreements')) setActiveTab('agreements');
+    else if (url?.startsWith('/utilities')) setActiveTab('utilities');
+    else if (url?.startsWith('/damages')) setActiveTab('damages');
   };
 
   if (loading) {
@@ -338,13 +371,16 @@ export default function App() {
             meters={meters}
             utilityBills={utilityBills}
             notifications={notifications}
+            users={users}
             onNavigate={setActiveTab}
+            onNavigateAction={handleNotificationAction}
             onOpenPayRent={(inv) => setPayingInvoice(inv)}
-            onOpenCreateAgreement={() => {
+            onOpenCreateAgreement={(tenantId = null) => {
               if (!isAdmin) {
                 alert('Access Denied: Only Landlord Administrator can make rental agreements.');
                 return;
               }
+              setTargetTenantForAgreement(tenantId);
               setShowCreateAgreement(true);
             }}
             onOpenReportDamage={() => setShowReportDamage(true)}
@@ -358,11 +394,13 @@ export default function App() {
           <AgreementsPage
             agreements={agreements}
             currentUser={currentUser}
-            onOpenCreateAgreement={() => {
+            users={users}
+            onOpenCreateAgreement={(tenantId = null) => {
               if (!isAdmin) {
                 alert('Access Denied: Only Landlord Administrator can create rental agreements.');
                 return;
               }
+              setTargetTenantForAgreement(tenantId);
               setShowCreateAgreement(true);
             }}
             onOpenAgreementViewer={(agr) => setViewingAgreement(agr)}
@@ -440,7 +478,11 @@ export default function App() {
           properties={properties}
           units={units}
           users={users}
-          onClose={() => setShowCreateAgreement(false)}
+          initialTenantId={targetTenantForAgreement}
+          onClose={() => {
+            setShowCreateAgreement(false);
+            setTargetTenantForAgreement(null);
+          }}
           onSubmit={handleCreateAgreement}
         />
       )}

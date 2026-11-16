@@ -151,13 +151,21 @@ export default function Navbar({
                       notifications.map((notif) => (
                         <div
                           key={notif.id}
-                          className={`p-3.5 hover:bg-slate-50 transition-colors flex items-start space-x-3 ${
+                          onClick={() => {
+                            if (notif.actionUrl) {
+                              onNavigateAction(notif.actionUrl, notif);
+                              onMarkNotificationRead(notif.id);
+                              setShowNotifDropdown(false);
+                            }
+                          }}
+                          className={`p-3.5 hover:bg-slate-50 transition-colors flex items-start space-x-3 cursor-pointer ${
                             !notif.read ? 'bg-emerald-50/40' : ''
                           }`}
                         >
                           <div className={`mt-0.5 p-1.5 rounded-lg flex-shrink-0 ${
                             notif.severity === 'warning' ? 'bg-amber-100 text-amber-700' :
                             notif.severity === 'success' ? 'bg-emerald-100 text-emerald-700' :
+                            notif.type === 'tenant_registered' ? 'bg-emerald-600 text-white shadow-sm' :
                             'bg-blue-100 text-blue-700'
                           }`}>
                             <Bell className="w-3.5 h-3.5" />
@@ -176,8 +184,9 @@ export default function Navbar({
                             </p>
                             {notif.actionText && (
                               <button
-                                onClick={() => {
-                                  onNavigateAction(notif.actionUrl);
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onNavigateAction(notif.actionUrl, notif);
                                   onMarkNotificationRead(notif.id);
                                   setShowNotifDropdown(false);
                                 }}
@@ -190,7 +199,10 @@ export default function Navbar({
                           </div>
                           {!notif.read && (
                             <button
-                              onClick={() => onMarkNotificationRead(notif.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onMarkNotificationRead(notif.id);
+                              }}
                               className="text-slate-400 hover:text-slate-600 p-1"
                               title="Mark read"
                             >

@@ -198,6 +198,31 @@ app.post('/api/auth/register', (req, res) => {
   };
 
   db.users.push(newUser);
+
+  // If newly registered user is a tenant, notify all Landlord Admins immediately
+  if (role === 'tenant') {
+    const adminUsers = db.users.filter(u => u.role === 'admin');
+    adminUsers.forEach(admin => {
+      db.notifications.unshift({
+        id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        userId: admin.id,
+        title: `New Tenant Registered: ${name}`,
+        message: `${name} has registered on the tenant portal for ${newUser.unitNumber} (${newUser.propertyName}). Aadhaar: ${newUser.aadhaar}. Ready to draft and issue official rental agreement.`,
+        type: 'tenant_registered',
+        severity: 'info',
+        read: false,
+        createdAt: new Date().toISOString(),
+        actionUrl: `/agreements?createTenant=${newUser.id}`,
+        actionText: 'Make Rental Agreement',
+        tenantId: newUser.id,
+        tenantName: newUser.name,
+        unitId: newUser.assignedUnitId,
+        unitNumber: newUser.unitNumber,
+        aadhaar: newUser.aadhaar
+      });
+    });
+  }
+
   writeDb(db);
 
   const token = `jwt_token_${newUser.id}_${Date.now()}`;

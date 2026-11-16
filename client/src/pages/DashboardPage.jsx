@@ -15,7 +15,8 @@ import {
   Bell,
   Sparkles,
   ChevronRight,
-  Eye
+  Eye,
+  UserCheck
 } from 'lucide-react';
 
 export default function DashboardPage({
@@ -27,7 +28,9 @@ export default function DashboardPage({
   meters,
   utilityBills,
   notifications,
+  users = [],
   onNavigate,
+  onNavigateAction,
   onOpenPayRent,
   onOpenCreateAgreement,
   onOpenReportDamage,
@@ -42,6 +45,9 @@ export default function DashboardPage({
   const paidInvoices = invoices.filter(inv => inv.status === 'paid');
   const pendingDamages = damages.filter(d => d.status === 'under_review' || d.status === 'reported');
   const unpaidUtilityBills = utilityBills.filter(b => b.status === 'unpaid');
+
+  // Tenant registrations needing agreement
+  const newTenantNotifs = notifications.filter(n => n.type === 'tenant_registered');
 
   // Tenant specific upcoming rent invoice
   const tenantPendingRent = unpaidInvoices.find(inv => inv.tenantId === currentUser?.id);
@@ -116,6 +122,42 @@ export default function DashboardPage({
         {/* Subtle decorative background circle */}
         <div className="absolute right-0 top-0 -mt-12 -mr-12 w-64 h-64 rounded-full bg-emerald-600/20 blur-3xl pointer-events-none" />
       </div>
+
+      {/* Landlord Notification Banner: New Tenant Registered & Needs Rental Agreement */}
+      {isAdmin && newTenantNotifs.length > 0 && (
+        <div className="bg-gradient-to-r from-emerald-700 via-teal-700 to-emerald-800 text-white rounded-2xl p-5 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in slide-in-from-top-2 duration-300">
+          <div className="flex items-start space-x-3.5">
+            <div className="p-3 bg-white/20 backdrop-blur rounded-xl text-white flex-shrink-0">
+              <UserCheck className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-white/25 px-2 py-0.5 rounded text-white">
+                  New Tenant Registration Alert
+                </span>
+                <span className="text-xs text-emerald-100 font-medium">
+                  {newTenantNotifs[0].unitNumber || 'Assigned Unit'}
+                </span>
+              </div>
+              <h3 className="text-base font-extrabold text-white mt-1">
+                {newTenantNotifs[0].title}
+              </h3>
+              <p className="text-xs text-emerald-100 max-w-2xl leading-relaxed mt-0.5">
+                {newTenantNotifs[0].message}
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => onOpenCreateAgreement(newTenantNotifs[0].tenantId)}
+            className="w-full sm:w-auto px-5 py-2.5 bg-white text-emerald-950 hover:bg-emerald-50 font-black rounded-xl text-xs shadow-md transition-all flex items-center justify-center space-x-2 whitespace-nowrap flex-shrink-0"
+          >
+            <FileText className="w-4 h-4 text-emerald-700" />
+            <span>Make Rental Agreement</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Tenant Alert Banner if Rent is Due */}
       {!isAdmin && tenantPendingRent && (
@@ -488,6 +530,16 @@ export default function DashboardPage({
                     </span>
                   </div>
                   <p className="text-slate-600 text-[11px] leading-relaxed">{notif.message}</p>
+                  {notif.actionText && (
+                    <button
+                      type="button"
+                      onClick={() => onNavigateAction ? onNavigateAction(notif.actionUrl, notif) : onNavigate('agreements')}
+                      className="inline-flex items-center space-x-1 text-[11px] text-emerald-700 font-bold hover:underline pt-1"
+                    >
+                      <span>{notif.actionText}</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
