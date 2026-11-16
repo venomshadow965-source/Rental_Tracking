@@ -1,0 +1,12 @@
+{
+  "name": "rent-tracking-system",
+  "version": "1.0.0",
+  "description": "Comprehensive Rent, Damage, Agreement and Utility Tracking System for Indian Rental Market",
+  "private": true,
+  "scripts": {
+    "start": "node server/server.js",
+    "server": "node server/server.js",
+    "client": "npm run dev --prefix client",
+    "build": "npm run build --prefix client"
+  }
+}
