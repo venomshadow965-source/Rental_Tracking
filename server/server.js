@@ -53,18 +53,161 @@ function getActiveUserId(req) {
 }
 
 /* ========================================================
-   AUTH & USER ENDPOINTS
+   AUTH & USER ENDPOINTS (SEPARATE LANDLORD & TENANT AUTH)
    ======================================================== */
 app.get('/api/auth/users', (req, res) => {
   const db = readDb();
-  res.json({ success: true, users: db.users });
+  // Strip password when listing
+  const safeUsers = db.users.map(({ password, ...u }) => u);
+  res.json({ success: true, users: safeUsers });
 });
 
 app.get('/api/auth/current', (req, res) => {
   const db = readDb();
   const userId = getActiveUserId(req);
-  const user = db.users.find(u => u.id === userId) || db.users[0];
-  res.json({ success: true, user });
+  const user = db.users.find(u => u.id === userId);
+  if (!user) {
+    return res.status(401).json({ success: false, message: 'Not authenticated' });
+  }
+  const { password, ...safeUser } = user;
+  res.json({ success: true, user: safeUser });
+});
+
+// Dedicated Login for Landlord and Tenant Portals
+app.post('/api/auth/login', (req, res) => {
+  const db = readDb();
+  const { identifier, password, portalType } = req.body;
+
+  if (!identifier || !password) {
+    return res.status(400).json({ success: false, message: 'Please provide email/phone and password.' });
+  }
+
+  // Find user by email or phone or ID
+  const cleanId = identifier.trim().toLowerCase();
+  const user = db.users.find(u => 
+    u.email.toLowerCase() === cleanId || 
+    u.phone.replace(/\s+/g, '') === cleanId.replace(/\s+/g, '') ||
+    u.id.toLowerCase() === cleanId
+  );
+
+  if (!user) {
+    return res.status(401).json({ success: false, message: 'No account found with this email or phone number.' });
+  }
+
+  // Validate password (in production use bcrypt, here supports password123 or registered password)
+  if (user.password && user.password !== password) {
+    return res.status(401).json({ success: false, message: 'Invalid password. Please check your credentials.' });
+  }
+
+  // Strict Portal Type Authorization Separation
+  if (portalType === 'landlord' && user.role !== 'admin') {
+    return res.status(403).json({
+      success: false,
+      code: 'PORTAL_MISMATCH',
+      message: 'Access Denied: You are trying to log in as a Tenant through the Landlord Portal. Please use the Tenant Resident Portal.'
+    });
+  }
+
+  if (portalType === 'tenant' && user.role !== 'tenant') {
+    return res.status(403).json({
+      success: false,
+      code: 'PORTAL_MISMATCH',
+      message: 'Access Denied: You are trying to log in as a Landlord through the Tenant Resident Portal. Please use the Landlord Management Portal.'
+    });
+  }
+
+  const token = `jwt_token_${user.id}_${Date.now()}`;
+  const { password: _, ...safeUser } = user;
+
+  res.json({
+    success: true,
+    token,
+    user: safeUser,
+    message: `Welcome back, ${user.name}!`
+  });
+});
+
+// Separate Registration for Landlord and Tenant
+app.post('/api/auth/register', (req, res) => {
+  const db = readDb();
+  const {
+    portalType, // 'landlord' or 'tenant'
+    name,
+    email,
+    phone,
+    password,
+    pan,
+    aadhaar,
+    permanentAddress,
+    propertyAddress,
+    unitId
+  } = req.body;
+
+  if (!name || !email || !password || !phone) {
+    return res.status(400).json({ success: false, message: 'Please provide Name, Email, Phone, and Password.' });
+  }
+
+  // Check if email already registered
+  const exists = db.users.some(u => u.email.toLowerCase() === email.trim().toLowerCase());
+  if (exists) {
+    return res.status(409).json({ success: false, message: 'An account with this email is already registered.' });
+  }
+
+  const userId = `usr_${portalType}_${Date.now()}`;
+  const role = portalType === 'landlord' ? 'admin' : 'tenant';
+
+  // For tenant, link to unit if selected
+  let assignedUnit = null;
+  let assignedProp = null;
+  if (role === 'tenant' && unitId) {
+    db.properties.forEach(p => {
+      const u = p.units.find(un => un.id === unitId);
+      if (u) {
+        assignedUnit = u;
+        assignedProp = p;
+        u.status = 'occupied';
+        u.tenantId = userId;
+        u.tenantName = name;
+      }
+    });
+  }
+
+  const newUser = {
+    id: userId,
+    role,
+    name,
+    email: email.trim().toLowerCase(),
+    phone,
+    password,
+    pan: pan ? pan.toUpperCase() : (role === 'admin' ? 'ABCPS9999F' : 'DEFPT1111E'),
+    aadhaar: aadhaar || '1234-5678-9012',
+    address: propertyAddress || permanentAddress || 'Bengaluru, Karnataka',
+    permanentAddress: permanentAddress || propertyAddress || 'Bengaluru, Karnataka',
+    assignedUnitId: assignedUnit ? assignedUnit.id : 'unit_302',
+    propertyId: assignedProp ? assignedProp.id : 'prop_1',
+    unitNumber: assignedUnit ? assignedUnit.number : 'Flat 302',
+    propertyName: assignedProp ? assignedProp.name : 'Palm Heights Apartments',
+    monthlyRent: assignedUnit ? assignedUnit.rent : 20000,
+    maintenance: assignedUnit ? assignedUnit.maintenance : 2000,
+    securityDeposit: assignedUnit ? assignedUnit.deposit : 100000,
+    moveInDate: new Date().toISOString().split('T')[0],
+    avatar: role === 'admin' 
+      ? 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80'
+      : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
+  };
+
+  db.users.push(newUser);
+  writeDb(db);
+
+  const token = `jwt_token_${newUser.id}_${Date.now()}`;
+  const { password: _, ...safeUser } = newUser;
+
+  res.status(201).json({
+    success: true,
+    token,
+    user: safeUser,
+    message: `${role === 'admin' ? 'Landlord' : 'Tenant'} account created successfully!`
+  });
 });
 
 /* ========================================================

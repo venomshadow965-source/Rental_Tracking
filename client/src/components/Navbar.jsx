@@ -12,13 +12,16 @@ import {
   Check, 
   ExternalLink,
   ShieldAlert,
-  ArrowRight
+  ArrowRight,
+  LogOut,
+  RefreshCw,
+  User
 } from 'lucide-react';
 
 export default function Navbar({ 
   currentUser, 
-  users, 
-  onSwitchUser, 
+  onLogout,
+  onSwitchPortalAuth,
   activeTab, 
   setActiveTab,
   notifications,
@@ -30,10 +33,11 @@ export default function Navbar({
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
 
   const unreadCount = notifications.filter(n => !n.read).length;
+  const isAdmin = currentUser?.role === 'admin';
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
-    { id: 'agreements', label: 'Rental Agreements', icon: FileText, badge: currentUser?.role === 'tenant' ? 'Aadhaar' : 'Gov Template' },
+    { id: 'agreements', label: 'Rental Agreements', icon: FileText, badge: isAdmin ? 'Admin' : 'Aadhaar' },
     { id: 'payments', label: 'Rent & Payments', icon: CreditCard },
     { id: 'utilities', label: 'Meters & Utilities', icon: Zap, badge: 'Gov Meters' },
     { id: 'damages', label: 'Damage & Invoices', icon: AlertTriangle }
@@ -46,14 +50,20 @@ export default function Navbar({
           
           {/* Logo & Brand */}
           <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('dashboard')}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md ${
+              isAdmin 
+                ? 'bg-gradient-to-br from-amber-600 to-amber-700 shadow-amber-500/20' 
+                : 'bg-gradient-to-br from-emerald-600 to-teal-700 shadow-emerald-500/20'
+            }`}>
               <Building2 className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
                 <span className="text-xl font-bold tracking-tight text-slate-900">KirayaSetu</span>
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">
-                  India
+                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                  isAdmin ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                }`}>
+                  {isAdmin ? 'Landlord Portal' : 'Tenant Portal'}
                 </span>
               </div>
               <p className="text-xs text-slate-500 hidden sm:block">Rent, Tenancy & Utility Tracking</p>
@@ -71,7 +81,7 @@ export default function Navbar({
                   onClick={() => setActiveTab(item.id)}
                   className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-semibold transition-all duration-150 ${
                     isActive 
-                      ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30' 
+                      ? (isAdmin ? 'bg-amber-600 text-white shadow-sm shadow-amber-600/30' : 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30')
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
@@ -79,7 +89,9 @@ export default function Navbar({
                   <span>{item.label}</span>
                   {item.badge && (
                     <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                      isActive ? 'bg-emerald-700 text-emerald-100' : 'bg-slate-200 text-slate-700'
+                      isActive 
+                        ? (isAdmin ? 'bg-amber-700 text-amber-100' : 'bg-emerald-700 text-emerald-100')
+                        : 'bg-slate-200 text-slate-700'
                     }`}>
                       {item.badge}
                     </span>
@@ -89,7 +101,7 @@ export default function Navbar({
             })}
           </nav>
 
-          {/* Right Controls: Notifications & User Persona Switcher */}
+          {/* Right Controls: Notifications & User Profile Menu */}
           <div className="flex items-center space-x-3">
             
             {/* Notification Bell */}
@@ -193,7 +205,7 @@ export default function Navbar({
               )}
             </div>
 
-            {/* Persona Switcher Dropdown */}
+            {/* Authenticated User Account Profile & Logout */}
             <div className="relative">
               <button
                 onClick={() => {
@@ -211,64 +223,77 @@ export default function Navbar({
                   <div className="flex items-center space-x-1.5">
                     <span className="text-xs font-bold text-slate-900">{currentUser?.name}</span>
                     <span className={`text-[10px] font-bold uppercase px-1.5 py-0.2 rounded ${
-                      currentUser?.role === 'admin' 
-                        ? 'bg-amber-100 text-amber-800' 
-                        : 'bg-blue-100 text-blue-800'
+                      isAdmin ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
                     }`}>
-                      {currentUser?.role === 'admin' ? 'Admin / Landlord' : 'Tenant'}
+                      {isAdmin ? 'Landlord' : 'Tenant'}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 truncate max-w-[140px]">
-                    {currentUser?.role === 'admin' ? 'All Properties' : currentUser?.unitNumber || 'Tenant'}
+                    {isAdmin ? 'Property Owner' : currentUser?.unitNumber || 'Resident'}
                   </p>
                 </div>
                 <ChevronDown className="w-4 h-4 text-slate-400" />
               </button>
 
-              {/* Persona Switcher Menu */}
+              {/* Account Profile Flyout */}
               {showUserDropdown && (
-                <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                  <div className="px-3 py-2 border-b border-slate-100">
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Switch Account Persona</p>
-                    <p className="text-[11px] text-slate-500">Test as Landlord or Individual Tenant</p>
+                <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-slate-200 py-3 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div className="px-4 pb-3 border-b border-slate-100 flex items-center space-x-3">
+                    <img
+                      src={currentUser?.avatar}
+                      alt={currentUser?.name}
+                      className="w-10 h-10 rounded-xl object-cover ring-2 ring-slate-200"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-900 truncate">{currentUser?.name}</p>
+                      <p className="text-xs text-slate-500 truncate">{currentUser?.email}</p>
+                      <span className={`text-[10px] font-bold uppercase px-1.5 py-0.2 rounded inline-block mt-0.5 ${
+                        isAdmin ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                      }`}>
+                        {isAdmin ? 'Landlord Administrator' : 'Tenant Resident'}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="p-1 space-y-1">
-                    {users.map((user) => {
-                      const isSelected = user.id === currentUser?.id;
-                      return (
-                        <button
-                          key={user.id}
-                          onClick={() => {
-                            onSwitchUser(user.id);
-                            setShowUserDropdown(false);
-                          }}
-                          className={`w-full flex items-center space-x-3 p-2.5 rounded-lg text-left transition-colors ${
-                            isSelected ? 'bg-emerald-50 border border-emerald-200' : 'hover:bg-slate-50'
-                          }`}
-                        >
-                          <img
-                            src={user.avatar}
-                            alt={user.name}
-                            className="w-9 h-9 rounded-lg object-cover"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-bold text-slate-900 truncate">{user.name}</span>
-                              <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded uppercase ${
-                                user.role === 'admin' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
-                              }`}>
-                                {user.role === 'admin' ? 'Admin' : 'Tenant'}
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-500 truncate">
-                              {user.role === 'admin' ? 'Owner / Landlord' : `${user.unitNumber} (${user.propertyName})`}
-                            </p>
-                          </div>
-                          {isSelected && <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />}
-                        </button>
-                      );
-                    })}
+                  <div className="px-4 py-2.5 text-xs text-slate-600 space-y-1 bg-slate-50 border-b border-slate-100">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Phone:</span>
+                      <span className="font-semibold text-slate-700">{currentUser?.phone}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Aadhaar:</span>
+                      <span className="font-mono font-bold text-slate-700">{currentUser?.aadhaar}</span>
+                    </div>
+                    {currentUser?.pan && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">PAN:</span>
+                        <span className="font-mono font-bold text-slate-700">{currentUser?.pan}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-2 space-y-1">
+                    <button
+                      onClick={() => {
+                        setShowUserDropdown(false);
+                        onSwitchPortalAuth(isAdmin ? 'tenant' : 'landlord');
+                      }}
+                      className="w-full flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors text-left"
+                    >
+                      <RefreshCw className="w-4 h-4 text-slate-400" />
+                      <span>Switch to {isAdmin ? 'Tenant Resident Portal' : 'Landlord Portal'}</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setShowUserDropdown(false);
+                        onLogout();
+                      }}
+                      className="w-full flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors text-left"
+                    >
+                      <LogOut className="w-4 h-4 text-rose-500" />
+                      <span>Log Out of Account</span>
+                    </button>
                   </div>
                 </div>
               )}
@@ -287,7 +312,9 @@ export default function Navbar({
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
                 className={`flex flex-col items-center px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${
-                  isActive ? 'text-emerald-700 font-bold' : 'text-slate-500'
+                  isActive 
+                    ? (isAdmin ? 'text-amber-700 font-bold' : 'text-emerald-700 font-bold') 
+                    : 'text-slate-500'
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -301,3 +328,4 @@ export default function Navbar({
     </header>
   );
 }
+

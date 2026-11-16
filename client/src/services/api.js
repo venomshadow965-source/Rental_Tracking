@@ -1,24 +1,61 @@
 // API Service Client for KirayaSetu
 const API_BASE = '/api';
 
-// Helper to store active user in localStorage for persistence across reloads
 export function getSavedUserId() {
-  return localStorage.getItem('kirayasetu_user_id') || 'usr_admin';
+  return localStorage.getItem('kirayasetu_user_id') || '';
 }
 
 export function setSavedUserId(id) {
-  localStorage.setItem('kirayasetu_user_id', id);
+  if (!id) {
+    localStorage.removeItem('kirayasetu_user_id');
+  } else {
+    localStorage.setItem('kirayasetu_user_id', id);
+  }
+}
+
+export function getSavedToken() {
+  return localStorage.getItem('kirayasetu_token') || '';
+}
+
+export function setSavedToken(token) {
+  if (!token) {
+    localStorage.removeItem('kirayasetu_token');
+  } else {
+    localStorage.setItem('kirayasetu_token', token);
+  }
 }
 
 function getHeaders() {
-  return {
-    'Content-Type': 'application/json',
-    'x-user-id': getSavedUserId()
+  const headers = {
+    'Content-Type': 'application/json'
   };
+  const userId = getSavedUserId();
+  const token = getSavedToken();
+  if (userId) headers['x-user-id'] = userId;
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
 }
 
 export const api = {
-  // Auth & Personas
+  // Auth & Portals
+  async login(identifier, password, portalType) {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier, password, portalType })
+    });
+    return res.json();
+  },
+
+  async register(data) {
+    const res = await fetch(`${API_BASE}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
   async getUsers() {
     const res = await fetch(`${API_BASE}/auth/users`, { headers: getHeaders() });
     return res.json();

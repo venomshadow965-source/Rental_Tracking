@@ -6,6 +6,11 @@ import PaymentsPage from './pages/PaymentsPage';
 import UtilitiesPage from './pages/UtilitiesPage';
 import DamagesPage from './pages/DamagesPage';
 
+import AuthLandingPage from './pages/AuthLandingPage';
+import LandlordAuthPage from './pages/LandlordAuthPage';
+import TenantAuthPage from './pages/TenantAuthPage';
+import UnauthorizedView from './components/UnauthorizedView';
+
 import AgreementViewer from './components/AgreementViewer';
 import CreateAgreementModal from './components/CreateAgreementModal';
 import RentPaymentModal from './components/RentPaymentModal';
@@ -16,11 +21,12 @@ import RegisterMeterModal from './components/RegisterMeterModal';
 import AddReadingModal from './components/AddReadingModal';
 import PayUtilityModal from './components/PayUtilityModal';
 
-import { api, getSavedUserId, setSavedUserId } from './services/api';
+import { api, getSavedUserId, setSavedUserId, setSavedToken } from './services/api';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [users, setUsers] = useState([]);
+  const [authView, setAuthView] = useState('landing'); // 'landing', 'landlord', 'tenant'
   const [activeTab, setActiveTab] = useState('dashboard');
   const [loading, setLoading] = useState(true);
 
@@ -47,28 +53,48 @@ export default function App() {
 
   // Initial Load
   useEffect(() => {
-    loadAllData();
+    checkAuthAndLoad();
   }, []);
 
-  const loadAllData = async () => {
+  const checkAuthAndLoad = async () => {
     try {
       setLoading(true);
-      const [
-        usersRes, 
-        currentRes, 
-        propsRes, 
-        unitsRes, 
-        agrsRes, 
-        invsRes, 
-        metersRes, 
-        billsRes, 
-        damagesRes, 
-        notifsRes
-      ] = await Promise.all([
+      const savedId = getSavedUserId();
+      
+      // Fetch users and units for auth selection
+      const [usersRes, propsRes, unitsRes] = await Promise.all([
         api.getUsers(),
-        api.getCurrentUser(),
         api.getProperties(),
-        api.getUnits(),
+        api.getUnits()
+      ]);
+
+      if (usersRes.success) setUsers(usersRes.users);
+      if (propsRes.success) setProperties(propsRes.properties);
+      if (unitsRes.success) setUnits(unitsRes.units);
+
+      // If user has a saved session, load their current profile and scoped data
+      if (savedId) {
+        const currentRes = await api.getCurrentUser();
+        if (currentRes.success && currentRes.user) {
+          setCurrentUser(currentRes.user);
+          await loadUserScopedData();
+        } else {
+          // Token expired or invalid
+          setSavedUserId('');
+          setSavedToken('');
+          setCurrentUser(null);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to authenticate session', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadUserScopedData = async () => {
+    try {
+      const [agrsRes, invsRes, metersRes, billsRes, damagesRes, notifsRes] = await Promise.all([
         api.getAgreements(),
         api.getRentInvoices(),
         api.getMeters(),
@@ -77,10 +103,6 @@ export default function App() {
         api.getNotifications()
       ]);
 
-      if (usersRes.success) setUsers(usersRes.users);
-      if (currentRes.success) setCurrentUser(currentRes.user);
-      if (propsRes.success) setProperties(propsRes.properties);
-      if (unitsRes.success) setUnits(unitsRes.units);
       if (agrsRes.success) setAgreements(agrsRes.agreements);
       if (invsRes.success) setInvoices(invsRes.invoices);
       if (metersRes.success) setMeters(metersRes.meters);
@@ -88,38 +110,34 @@ export default function App() {
       if (damagesRes.success) setDamages(damagesRes.damages);
       if (notifsRes.success) setNotifications(notifsRes.notifications);
     } catch (err) {
-      console.error('Failed to load application data', err);
-    } finally {
-      setLoading(false);
+      console.error('Failed to load user scoped data', err);
     }
   };
 
-  // Switch Active User Persona (Admin vs Tenant)
-  const handleSwitchUser = async (userId) => {
-    setSavedUserId(userId);
-    const target = users.find(u => u.id === userId);
-    if (target) {
-      setCurrentUser(target);
-    }
-    // Refresh user-scoped data
-    const [agrsRes, invsRes, metersRes, billsRes, damagesRes, notifsRes] = await Promise.all([
-      api.getAgreements(),
-      api.getRentInvoices(),
-      api.getMeters(),
-      api.getUtilityBills(),
-      api.getDamages(),
-      api.getNotifications()
-    ]);
-
-    if (agrsRes.success) setAgreements(agrsRes.agreements);
-    if (invsRes.success) setInvoices(invsRes.invoices);
-    if (metersRes.success) setMeters(metersRes.meters);
-    if (billsRes.success) setUtilityBills(billsRes.bills);
-    if (damagesRes.success) setDamages(damagesRes.damages);
-    if (notifsRes.success) setNotifications(notifsRes.notifications);
+  // Login handler from dedicated portal
+  const handleLoginSuccess = async (user) => {
+    setCurrentUser(user);
+    setActiveTab('dashboard');
+    await loadUserScopedData();
   };
 
-  // Action: Create Agreement
+  // Logout handler
+  const handleLogout = () => {
+    setSavedUserId('');
+    setSavedToken('');
+    setCurrentUser(null);
+    setAuthView('landing');
+  };
+
+  // Switch portal handler
+  const handleSwitchPortal = (targetPortal) => {
+    setSavedUserId('');
+    setSavedToken('');
+    setCurrentUser(null);
+    setAuthView(targetPortal);
+  };
+
+  // Action: Create Agreement (Admin only)
   const handleCreateAgreement = async (data) => {
     const res = await api.createAgreement(data);
     if (res.success) {
@@ -239,15 +257,54 @@ export default function App() {
     else if (url === '/damages') setActiveTab('damages');
   };
 
-  if (loading && !currentUser) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mb-4" />
-        <h2 className="text-lg font-bold text-slate-800">Loading KirayaSetu...</h2>
-        <p className="text-xs text-slate-500">Rent, Agreement & Utility Tracking System</p>
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 text-white">
+        <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4" />
+        <h2 className="text-lg font-bold">Connecting to KirayaSetu...</h2>
+        <p className="text-xs text-slate-400">Verifying secure role authentication</p>
       </div>
     );
   }
+
+  // ==========================================
+  // UN-AUTHENTICATED: RENDER SEPARATE AUTH PAGES
+  // ==========================================
+  if (!currentUser) {
+    if (authView === 'landing') {
+      return (
+        <AuthLandingPage 
+          onSelectPortal={(portal) => setAuthView(portal)} 
+        />
+      );
+    }
+
+    if (authView === 'landlord') {
+      return (
+        <LandlordAuthPage
+          onLoginSuccess={handleLoginSuccess}
+          onBackToLanding={() => setAuthView('landing')}
+          onSwitchToTenant={() => setAuthView('tenant')}
+        />
+      );
+    }
+
+    if (authView === 'tenant') {
+      return (
+        <TenantAuthPage
+          units={units}
+          onLoginSuccess={handleLoginSuccess}
+          onBackToLanding={() => setAuthView('landing')}
+          onSwitchToLandlord={() => setAuthView('landlord')}
+        />
+      );
+    }
+  }
+
+  // ==========================================
+  // AUTHENTICATED: RENDER ROLE-PROTECTED APP
+  // ==========================================
+  const isAdmin = currentUser.role === 'admin';
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col selection:bg-emerald-500 selection:text-white">
@@ -255,8 +312,8 @@ export default function App() {
       {/* Top Navigation */}
       <Navbar
         currentUser={currentUser}
-        users={users}
-        onSwitchUser={handleSwitchUser}
+        onLogout={handleLogout}
+        onSwitchPortalAuth={handleSwitchPortal}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         notifications={notifications}
@@ -267,6 +324,8 @@ export default function App() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        
+        {/* Role Authorization Guards on Action Modals */}
         {activeTab === 'dashboard' && (
           <DashboardPage
             currentUser={currentUser}
@@ -279,7 +338,13 @@ export default function App() {
             notifications={notifications}
             onNavigate={setActiveTab}
             onOpenPayRent={(inv) => setPayingInvoice(inv)}
-            onOpenCreateAgreement={() => setShowCreateAgreement(true)}
+            onOpenCreateAgreement={() => {
+              if (!isAdmin) {
+                alert('Access Denied: Only Landlord Administrator can make rental agreements.');
+                return;
+              }
+              setShowCreateAgreement(true);
+            }}
             onOpenReportDamage={() => setShowReportDamage(true)}
             onOpenAgreementViewer={(agr) => setViewingAgreement(agr)}
             onSendRentReminders={handleSendRentReminders}
@@ -290,7 +355,13 @@ export default function App() {
           <AgreementsPage
             agreements={agreements}
             currentUser={currentUser}
-            onOpenCreateAgreement={() => setShowCreateAgreement(true)}
+            onOpenCreateAgreement={() => {
+              if (!isAdmin) {
+                alert('Access Denied: Only Landlord Administrator can create rental agreements.');
+                return;
+              }
+              setShowCreateAgreement(true);
+            }}
             onOpenAgreementViewer={(agr) => setViewingAgreement(agr)}
           />
         )}
@@ -321,7 +392,13 @@ export default function App() {
             damages={damages}
             currentUser={currentUser}
             onOpenReportDamage={() => setShowReportDamage(true)}
-            onOpenReviewDamage={(dmg) => setReviewingDamage(dmg)}
+            onOpenReviewDamage={(dmg) => {
+              if (!isAdmin) {
+                alert('Access Denied: Only Landlord Administrator can review and reimburse damage claims.');
+                return;
+              }
+              setReviewingDamage(dmg);
+            }}
           />
         )}
       </main>
@@ -337,9 +414,9 @@ export default function App() {
           <div className="flex items-center space-x-4 text-[11px] text-slate-400">
             <span>Model Tenancy Act Compliant</span>
             <span>•</span>
-            <span>e-Stamp & UIDAI Aadhaar Verification</span>
+            <span>Separate Landlord & Tenant Auth Gateways</span>
             <span>•</span>
-            <span>BBPS Utility Integration</span>
+            <span>Aadhaar e-Sign & BBPS Integration</span>
           </div>
         </div>
       </footer>
@@ -424,3 +501,4 @@ export default function App() {
     </div>
   );
 }
+
