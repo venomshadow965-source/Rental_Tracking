@@ -33,6 +33,7 @@ export default function DashboardPage({
   onNavigateAction,
   onOpenPayRent,
   onOpenCreateAgreement,
+  onOpenAddProperty,
   onOpenReportDamage,
   onOpenAgreementViewer,
   onOpenViewInvoice,
@@ -81,6 +82,13 @@ export default function DashboardPage({
           <div className="flex flex-wrap items-center gap-2.5">
             {isAdmin ? (
               <>
+                <button
+                  onClick={onOpenAddProperty}
+                  className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs shadow-md transition-all flex items-center space-x-1.5"
+                >
+                  <Building2 className="w-4 h-4" />
+                  <span>List New Property</span>
+                </button>
                 <button
                   onClick={onOpenCreateAgreement}
                   className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs shadow-md transition-all flex items-center space-x-1.5"
@@ -194,10 +202,10 @@ export default function DashboardPage({
       )}
 
       {/* KPI Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
         {isAdmin ? (
           <>
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
               <div className="flex items-center justify-between text-slate-400">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Collected Rent</span>
                 <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
@@ -212,7 +220,7 @@ export default function DashboardPage({
               </p>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
               <div className="flex items-center justify-between text-slate-400">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Pending Rent</span>
                 <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
@@ -227,25 +235,31 @@ export default function DashboardPage({
               </p>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+            <div 
+              onClick={() => onNavigate('properties')}
+              className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 hover:border-emerald-400 shadow-sm space-y-2 cursor-pointer transition-all group"
+            >
               <div className="flex items-center justify-between text-slate-400">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Damage Claims</span>
-                <div className="p-2 bg-rose-50 text-rose-600 rounded-lg">
-                  <AlertTriangle className="w-4 h-4" />
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 group-hover:text-emerald-700">Properties</span>
+                <div className="p-2 bg-amber-50 text-amber-600 rounded-lg group-hover:scale-110 transition-transform">
+                  <Building2 className="w-4 h-4" />
                 </div>
               </div>
               <div className="text-2xl font-black text-slate-900">
-                {pendingDamages.length}
+                {properties.length} Listed
               </div>
-              <p className="text-[11px] text-slate-500">
-                Requires review / approval
+              <p className="text-[11px] text-emerald-700 font-semibold flex items-center space-x-1">
+                <span>Manage Portfolio →</span>
               </p>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+            <div 
+              onClick={() => onNavigate('agreements')}
+              className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 hover:border-blue-400 shadow-sm space-y-2 cursor-pointer transition-all group"
+            >
               <div className="flex items-center justify-between text-slate-400">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Agreements</span>
-                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 group-hover:text-blue-700">Agreements</span>
+                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg group-hover:scale-110 transition-transform">
                   <FileText className="w-4 h-4" />
                 </div>
               </div>
@@ -254,6 +268,24 @@ export default function DashboardPage({
               </div>
               <p className="text-[11px] text-blue-700 font-semibold">
                 {agreements.filter(a => a.status === 'executed').length} active executed
+              </p>
+            </div>
+
+            <div 
+              onClick={() => onNavigate('damages')}
+              className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 hover:border-rose-400 shadow-sm space-y-2 cursor-pointer transition-all group"
+            >
+              <div className="flex items-center justify-between text-slate-400">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 group-hover:text-rose-700">Damage Claims</span>
+                <div className="p-2 bg-rose-50 text-rose-600 rounded-lg group-hover:scale-110 transition-transform">
+                  <AlertTriangle className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-2xl font-black text-slate-900">
+                {pendingDamages.length}
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Requires review / approval
               </p>
             </div>
           </>

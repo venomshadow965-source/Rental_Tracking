@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import DashboardPage from './pages/DashboardPage';
+import PropertiesPage from './pages/PropertiesPage';
 import AgreementsPage from './pages/AgreementsPage';
 import PaymentsPage from './pages/PaymentsPage';
 import UtilitiesPage from './pages/UtilitiesPage';
@@ -13,6 +14,8 @@ import UnauthorizedView from './components/UnauthorizedView';
 
 import AgreementViewer from './components/AgreementViewer';
 import CreateAgreementModal from './components/CreateAgreementModal';
+import AddPropertyModal from './components/AddPropertyModal';
+import AddUnitModal from './components/AddUnitModal';
 import RentPaymentModal from './components/RentPaymentModal';
 import HraReceiptModal from './components/HraReceiptModal';
 import ReportDamageModal from './components/ReportDamageModal';
@@ -45,6 +48,8 @@ export default function App() {
   const [viewingAgreement, setViewingAgreement] = useState(null);
   const [showCreateAgreement, setShowCreateAgreement] = useState(false);
   const [targetTenantForAgreement, setTargetTenantForAgreement] = useState(null);
+  const [showAddProperty, setShowAddProperty] = useState(false);
+  const [addingUnitProperty, setAddingUnitProperty] = useState(null);
   const [payingInvoice, setPayingInvoice] = useState(null);
   const [viewingHraReceipt, setViewingHraReceipt] = useState(null);
   const [showReportDamage, setShowReportDamage] = useState(false);
@@ -138,6 +143,32 @@ export default function App() {
     setSavedToken('');
     setCurrentUser(null);
     setAuthView(targetPortal);
+  };
+
+  // Action: List New Property (Admin only)
+  const handleCreateProperty = async (data) => {
+    const res = await api.createProperty(data);
+    if (res.success) {
+      setProperties(prev => [...prev, res.property]);
+      const [unitsRes, notifsRes] = await Promise.all([
+        api.getUnits(),
+        api.getNotifications()
+      ]);
+      if (unitsRes.success) setUnits(unitsRes.units);
+      if (notifsRes.success) setNotifications(notifsRes.notifications);
+    }
+    return res;
+  };
+
+  // Action: Add Unit to Property (Admin only)
+  const handleAddUnit = async (propertyId, unitData) => {
+    const res = await api.addUnitToProperty(propertyId, unitData);
+    if (res.success) {
+      setProperties(prev => prev.map(p => p.id === propertyId ? res.property : p));
+      const unitsRes = await api.getUnits();
+      if (unitsRes.success) setUnits(unitsRes.units);
+    }
+    return res;
   };
 
   // Action: Create Agreement (Admin only)
@@ -286,7 +317,8 @@ export default function App() {
       return;
     }
 
-    if (url?.startsWith('/payments')) setActiveTab('payments');
+    if (url?.startsWith('/properties')) setActiveTab('properties');
+    else if (url?.startsWith('/payments')) setActiveTab('payments');
     else if (url?.startsWith('/agreements')) setActiveTab('agreements');
     else if (url?.startsWith('/utilities')) setActiveTab('utilities');
     else if (url?.startsWith('/damages')) setActiveTab('damages');
@@ -347,6 +379,7 @@ export default function App() {
       {/* Top Navigation */}
       <Navbar
         currentUser={currentUser}
+        properties={properties}
         onLogout={handleLogout}
         onSwitchPortalAuth={handleSwitchPortal}
         activeTab={activeTab}
@@ -375,6 +408,13 @@ export default function App() {
             onNavigate={setActiveTab}
             onNavigateAction={handleNotificationAction}
             onOpenPayRent={(inv) => setPayingInvoice(inv)}
+            onOpenAddProperty={() => {
+              if (!isAdmin) {
+                alert('Access Denied: Only Landlord Administrator can list new properties.');
+                return;
+              }
+              setShowAddProperty(true);
+            }}
             onOpenCreateAgreement={(tenantId = null) => {
               if (!isAdmin) {
                 alert('Access Denied: Only Landlord Administrator can make rental agreements.');
@@ -387,6 +427,31 @@ export default function App() {
             onOpenAgreementViewer={(agr) => setViewingAgreement(agr)}
             onOpenViewInvoice={(dmg) => setViewingInvoiceDamage(dmg)}
             onSendRentReminders={handleSendRentReminders}
+          />
+        )}
+
+        {activeTab === 'properties' && (
+          <PropertiesPage
+            properties={properties}
+            currentUser={currentUser}
+            onOpenAddProperty={() => {
+              if (!isAdmin) {
+                alert('Access Denied: Only Landlord Administrator can list new properties.');
+                return;
+              }
+              setShowAddProperty(true);
+            }}
+            onOpenAddUnit={(prop) => {
+              if (!isAdmin) {
+                alert('Access Denied: Only Landlord Administrator can add units.');
+                return;
+              }
+              setAddingUnitProperty(prop);
+            }}
+            onOpenCreateAgreement={(tenantId = null) => {
+              setTargetTenantForAgreement(tenantId);
+              setShowCreateAgreement(true);
+            }}
           />
         )}
 
@@ -484,6 +549,21 @@ export default function App() {
             setTargetTenantForAgreement(null);
           }}
           onSubmit={handleCreateAgreement}
+        />
+      )}
+
+      {showAddProperty && (
+        <AddPropertyModal
+          onClose={() => setShowAddProperty(false)}
+          onSubmit={handleCreateProperty}
+        />
+      )}
+
+      {addingUnitProperty && (
+        <AddUnitModal
+          property={addingUnitProperty}
+          onClose={() => setAddingUnitProperty(null)}
+          onSubmit={handleAddUnit}
         />
       )}
 

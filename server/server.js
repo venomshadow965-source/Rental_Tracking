@@ -244,6 +244,139 @@ app.get('/api/properties', (req, res) => {
   res.json({ success: true, properties: db.properties });
 });
 
+// Landlord lists a new property with units
+app.post('/api/properties', (req, res) => {
+  const db = readDb();
+  const userId = getActiveUserId(req);
+  const currentUser = db.users.find(u => u.id === userId);
+
+  if (currentUser && currentUser.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'Access Denied: Only Landlord Administrator can list new properties.' });
+  }
+
+  const {
+    name,
+    propertyType = 'Multi-family Residential Building',
+    address,
+    city = 'Bengaluru',
+    state = 'Karnataka',
+    pincode = '560034',
+    units = []
+  } = req.body;
+
+  if (!name || !address) {
+    return res.status(400).json({ success: false, message: 'Property Name and Address are required.' });
+  }
+
+  const propertyId = `prop_${Date.now()}`;
+
+  // Process units
+  const processedUnits = (units.length > 0 ? units : [
+    {
+      number: 'Flat 101',
+      floor: '1st Floor',
+      type: '2 BHK',
+      rent: 20000,
+      maintenance: 2000,
+      deposit: 100000
+    }
+  ]).map((u, idx) => ({
+    id: `unit_${Date.now()}_${idx + 1}`,
+    number: u.number || `Flat ${101 + idx}`,
+    floor: u.floor || '1st Floor',
+    type: u.type || '2 BHK',
+    rent: Number(u.rent) || 20000,
+    maintenance: Number(u.maintenance) || 2000,
+    deposit: Number(u.deposit) || (Number(u.rent) * 5 || 100000),
+    status: 'vacant',
+    tenantId: null,
+    tenantName: null
+  }));
+
+  const newProperty = {
+    id: propertyId,
+    name: name.trim(),
+    propertyType,
+    address: address.trim(),
+    city: city.trim(),
+    state: state.trim(),
+    pincode: pincode.trim(),
+    totalUnits: processedUnits.length,
+    units: processedUnits
+  };
+
+  db.properties.push(newProperty);
+
+  // Notify Landlord
+  const adminId = currentUser ? currentUser.id : 'usr_admin';
+  db.notifications.unshift({
+    id: `notif_${Date.now()}`,
+    userId: adminId,
+    title: `Property Listed: ${newProperty.name}`,
+    message: `"${newProperty.name}" with ${processedUnits.length} unit(s) has been successfully listed in ${newProperty.city}. Units are now open for tenant registration and agreements.`,
+    type: 'property_listed',
+    severity: 'success',
+    read: false,
+    createdAt: new Date().toISOString(),
+    actionUrl: '/properties',
+    actionText: 'View Properties'
+  });
+
+  writeDb(db);
+
+  res.status(201).json({
+    success: true,
+    property: newProperty,
+    message: `Property "${newProperty.name}" listed successfully with ${processedUnits.length} unit(s)!`
+  });
+});
+
+// Add unit to existing property
+app.post('/api/properties/:id/units', (req, res) => {
+  const db = readDb();
+  const property = db.properties.find(p => p.id === req.params.id);
+  if (!property) {
+    return res.status(404).json({ success: false, message: 'Property not found.' });
+  }
+
+  const {
+    number,
+    floor = '1st Floor',
+    type = '2 BHK',
+    rent = 20000,
+    maintenance = 2000,
+    deposit = 100000
+  } = req.body;
+
+  if (!number) {
+    return res.status(400).json({ success: false, message: 'Unit / Flat number is required.' });
+  }
+
+  const newUnit = {
+    id: `unit_${Date.now()}_${property.units.length + 1}`,
+    number: number.trim(),
+    floor: floor.trim(),
+    type: type.trim(),
+    rent: Number(rent) || 20000,
+    maintenance: Number(maintenance) || 2000,
+    deposit: Number(deposit) || (Number(rent) * 5 || 100000),
+    status: 'vacant',
+    tenantId: null,
+    tenantName: null
+  };
+
+  property.units.push(newUnit);
+  property.totalUnits = property.units.length;
+  writeDb(db);
+
+  res.status(201).json({
+    success: true,
+    unit: newUnit,
+    property,
+    message: `Unit ${newUnit.number} added to ${property.name} successfully!`
+  });
+});
+
 app.get('/api/units', (req, res) => {
   const db = readDb();
   const allUnits = [];

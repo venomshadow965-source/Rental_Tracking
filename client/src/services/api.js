@@ -77,6 +77,24 @@ export const api = {
     return res.json();
   },
 
+  async createProperty(data) {
+    const res = await fetch(`${API_BASE}/properties`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async addUnitToProperty(propertyId, unitData) {
+    const res = await fetch(`${API_BASE}/properties/${propertyId}/units`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(unitData)
+    });
+    return res.json();
+  },
+
   // Rental Agreements
   async getAgreements() {
     const res = await fetch(`${API_BASE}/agreements`, { headers: getHeaders() });

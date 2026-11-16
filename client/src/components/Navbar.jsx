@@ -20,6 +20,7 @@ import {
 
 export default function Navbar({ 
   currentUser, 
+  properties = [],
   onLogout,
   onSwitchPortalAuth,
   activeTab, 
@@ -37,6 +38,7 @@ export default function Navbar({
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
+    ...(isAdmin ? [{ id: 'properties', label: 'Properties', icon: Building2, badge: properties?.length ? `${properties.length}` : null }] : []),
     { id: 'agreements', label: 'Rental Agreements', icon: FileText, badge: isAdmin ? 'Admin' : 'Aadhaar' },
     { id: 'payments', label: 'Rent & Payments', icon: CreditCard },
     { id: 'utilities', label: 'Meters & Utilities', icon: Zap, badge: 'Gov Meters' },
