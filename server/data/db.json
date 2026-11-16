@@ -521,6 +521,41 @@
   ],
   "damages": [
     {
+      "id": "dmg_1794818729038",
+      "tenantId": "usr_tenant_1",
+      "tenantName": "Priya Verma",
+      "unitId": "unit_302",
+      "unitNumber": "Flat 302",
+      "title": "Main Bedroom Ceiling Fan Regulator & Capacitor",
+      "category": "Electrical",
+      "severity": "Medium",
+      "incidentDate": "2026-11-16",
+      "reportedDate": "2026-11-16",
+      "description": "Ceiling fan was humming loudly and not running at normal speed. Electrician replaced Havells capacitor and wall regulator.",
+      "repairCost": 650,
+      "costPayer": "landlord",
+      "status": "under_review",
+      "invoice": {
+        "invoiceNumber": "CEW-NOV-812",
+        "vendorName": "City Electrical Works",
+        "vendorGstin": "Not Registered",
+        "invoiceDate": "2026-11-16",
+        "amount": 650,
+        "fileUrl": "/uploads/file-1794818727377-623119429.pdf",
+        "fileName": "Internship Letter Achutha B.pdf",
+        "fileSize": "320 KB"
+      },
+      "photos": [
+        "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=500&auto=format&fit=crop&q=80"
+      ],
+      "adminReview": {
+        "reviewedBy": null,
+        "reviewedAt": null,
+        "decision": null,
+        "notes": "Submitted by tenant. Awaiting landlord inspection."
+      }
+    },
+    {
       "id": "dmg_1794818182386",
       "tenantId": "usr_tenant_1",
       "tenantName": "Priya Verma",
@@ -786,6 +821,18 @@
     }
   ],
   "notifications": [
+    {
+      "id": "notif_1794818729038",
+      "userId": "usr_admin",
+      "title": "New Damage & Repair Claim",
+      "message": "Priya Verma reported: \"Main Bedroom Ceiling Fan Regulator & Capacitor\" (Cost: ₹650) with invoice.",
+      "type": "damage_claim",
+      "severity": "warning",
+      "read": false,
+      "createdAt": "2026-11-16T08:45:29.079Z",
+      "actionUrl": "/damages",
+      "actionText": "Review Invoice"
+    },
     {
       "id": "notif_1794818182386",
       "userId": "usr_admin",

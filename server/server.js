@@ -24,6 +24,7 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 app.use('/uploads', express.static(uploadsDir));
+app.use('/sample-invoices', express.static(uploadsDir));
 
 // Serve static client build if present
 const clientDist = path.join(__dirname, '../client/dist');
@@ -958,7 +959,7 @@ app.post('/api/reset-data', (req, res) => {
 // SPA Fallback for Client Routing
 if (fs.existsSync(clientDist)) {
   app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/sample-invoices')) {
       return next();
     }
     res.sendFile(path.join(clientDist, 'index.html'));

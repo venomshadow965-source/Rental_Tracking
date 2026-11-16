@@ -14,7 +14,8 @@ import {
   Stamp,
   Bell,
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  Eye
 } from 'lucide-react';
 
 export default function DashboardPage({
@@ -393,9 +394,10 @@ export default function DashboardPage({
                       <button
                         type="button"
                         onClick={() => onOpenViewInvoice && onOpenViewInvoice(dmg)}
-                        className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 underline mt-0.5"
+                        className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 underline mt-0.5 inline-flex items-center space-x-1"
                       >
-                        View Invoice →
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>View Uploaded Invoice →</span>
                       </button>
                     )}
                   </div>
