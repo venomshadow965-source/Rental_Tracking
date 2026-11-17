@@ -35,14 +35,22 @@ export default function PropertiesPage({
   onOpenRegisterMeter
 }) {
   const isAdmin = currentUser?.role === 'admin';
+  // Filter strictly to current landlord's properties (exclude other landlords)
+  const myProperties = properties.filter(p => {
+    if (isAdmin) {
+      return p.landlordId === currentUser?.id || (!p.landlordId && currentUser?.id === 'usr_admin');
+    }
+    return true;
+  });
+
   const [filter, setFilter] = useState('all'); // all, occupied, vacant
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'map'
-  const [selectedMapPropertyId, setSelectedMapPropertyId] = useState(properties[0]?.id || null);
+  const [selectedMapPropertyId, setSelectedMapPropertyId] = useState(myProperties[0]?.id || null);
   const [expandedCardMapId, setExpandedCardMapId] = useState(null);
 
-  // Calculate totals
+  // Calculate totals from landlord properties only
   const allUnits = [];
-  properties.forEach(p => {
+  myProperties.forEach(p => {
     (p.units || []).forEach(u => {
       allUnits.push({ ...u, propertyId: p.id, propertyName: p.name });
     });
@@ -86,7 +94,7 @@ export default function PropertiesPage({
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Properties</span>
-          <p className="text-2xl font-black text-slate-900">{properties.length}</p>
+          <p className="text-2xl font-black text-slate-900">{myProperties.length}</p>
           <span className="text-[11px] text-slate-500">Buildings / Villas</span>
         </div>
 
@@ -126,7 +134,7 @@ export default function PropertiesPage({
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
-            All Properties ({properties.length})
+            All Properties ({myProperties.length})
           </button>
           <button
             onClick={() => setFilter('occupied')}
@@ -166,8 +174,8 @@ export default function PropertiesPage({
             type="button"
             onClick={() => {
               setViewMode('map');
-              if (!selectedMapPropertyId && properties.length > 0) {
-                setSelectedMapPropertyId(properties[0].id);
+              if (!selectedMapPropertyId && myProperties.length > 0) {
+                setSelectedMapPropertyId(myProperties[0].id);
               }
             }}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-colors ${
@@ -175,7 +183,7 @@ export default function PropertiesPage({
             }`}
           >
             <MapPin className="w-3.5 h-3.5" />
-            <span>Interactive Portfolio Map</span>
+            <span>Interactive Portfolio Map ({myProperties.length})</span>
           </button>
         </div>
       </div>
@@ -185,11 +193,19 @@ export default function PropertiesPage({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-200">
           {/* Property Selector Column */}
           <div className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-              Select Property to View on Map
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center justify-between">
+              <span>Your Properties ({myProperties.length})</span>
+              <span className="text-[10px] text-emerald-700 font-semibold">📍 Exact Pin Markers</span>
             </h3>
-            {properties.map((prop) => {
-              const isSelected = (selectedMapPropertyId || properties[0]?.id) === prop.id;
+
+            {myProperties.length === 0 && (
+              <div className="p-6 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-center text-xs text-slate-500">
+                No properties in your portfolio yet. Click "List New Property" above to add one.
+              </div>
+            )}
+
+            {myProperties.map((prop) => {
+              const isSelected = (selectedMapPropertyId || myProperties[0]?.id) === prop.id;
               const occCount = (prop.units || []).filter(u => u.status === 'occupied').length;
               return (
                 <div
@@ -214,12 +230,18 @@ export default function PropertiesPage({
                     </span>
                   </div>
 
-                  {prop.latitude && prop.longitude && (
-                    <p className="text-[10px] text-slate-400 font-mono mt-1.5 flex items-center space-x-1">
-                      <MapPin className="w-3 h-3 text-slate-400" />
-                      <span>{prop.latitude.toFixed(4)}° N, {prop.longitude.toFixed(4)}° E</span>
-                    </p>
-                  )}
+                  {/* Landlord Ownership & Exact Coordinates Badges */}
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    <span className="text-[10px] bg-amber-50 text-amber-800 border border-amber-200 font-bold px-1.5 py-0.5 rounded">
+                      👑 Owned by You
+                    </span>
+                    {prop.latitude && prop.longitude && (
+                      <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 font-mono px-1.5 py-0.5 rounded flex items-center space-x-0.5">
+                        <MapPin className="w-2.5 h-2.5 text-emerald-600" />
+                        <span>{prop.latitude.toFixed(4)}° N, {prop.longitude.toFixed(4)}° E</span>
+                      </span>
+                    )}
+                  </div>
 
                   <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
                     <span className="text-slate-500">Units: {prop.units?.length || 0} ({occCount} occupied)</span>
@@ -244,8 +266,15 @@ export default function PropertiesPage({
           {/* Interactive Map Column */}
           <div className="lg:col-span-2 space-y-4">
             {(() => {
-              const currentProp = properties.find(p => p.id === (selectedMapPropertyId || properties[0]?.id)) || properties[0];
-              if (!currentProp) return null;
+              const currentProp = myProperties.find(p => p.id === (selectedMapPropertyId || myProperties[0]?.id)) || myProperties[0];
+              if (!currentProp) {
+                return (
+                  <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-500 space-y-2">
+                    <Building2 className="w-8 h-8 text-slate-300 mx-auto" />
+                    <p className="text-sm font-semibold">No properties in your portfolio to display on the map.</p>
+                  </div>
+                );
+              }
 
               return (
                 <div className="space-y-3">
@@ -254,7 +283,10 @@ export default function PropertiesPage({
                       <div className="flex items-center space-x-2">
                         <h3 className="text-base font-bold text-slate-900">{currentProp.name}</h3>
                         <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">
-                          Live Satellite & Map
+                          Exact Marker Pin
+                        </span>
+                        <span className="text-[10px] bg-amber-50 text-amber-800 border border-amber-200 font-bold px-2 py-0.5 rounded">
+                          👑 Your Property
                         </span>
                       </div>
                       <p className="text-xs text-slate-500">{currentProp.address}, {currentProp.city}, {currentProp.state} - {currentProp.pincode}</p>
@@ -273,6 +305,7 @@ export default function PropertiesPage({
 
                   <PropertyMapViewer
                     property={currentProp}
+                    currentUser={currentUser}
                     height="460px"
                     showControls={true}
                     showLandmarks={true}
@@ -287,7 +320,7 @@ export default function PropertiesPage({
       {/* Properties List (Grid View) */}
       {viewMode === 'grid' && (
       <div className="space-y-6">
-        {properties.map((property) => {
+        {myProperties.map((property) => {
           const propUnits = (property.units || []).filter(u => {
             if (filter === 'occupied') return u.status === 'occupied';
             if (filter === 'vacant') return u.status === 'vacant';
@@ -312,10 +345,13 @@ export default function PropertiesPage({
                       <Building2 className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <h2 className="text-base font-bold text-slate-900">{property.name}</h2>
                         <span className="text-[10px] font-bold uppercase bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded">
                           {property.propertyType}
+                        </span>
+                        <span className="text-[10px] bg-amber-50 text-amber-800 border border-amber-200 font-bold px-2 py-0.5 rounded-full flex items-center space-x-1">
+                          <span>👑 Owned by {currentUser?.name || 'You'}</span>
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 flex items-center space-x-1 mt-0.5">
@@ -323,8 +359,9 @@ export default function PropertiesPage({
                         <span>{property.address}, {property.city}, {property.state} - {property.pincode}</span>
                       </p>
                       {property.latitude && property.longitude && (
-                        <p className="text-[10px] text-slate-400 font-mono">
-                          Coordinates: {property.latitude.toFixed(4)}° N, {property.longitude.toFixed(4)}° E
+                        <p className="text-[10px] text-emerald-700 font-mono flex items-center space-x-1 mt-0.5">
+                          <MapPin className="w-3 h-3 text-emerald-600" />
+                          <span>Exact Pin: {property.latitude.toFixed(4)}° N, {property.longitude.toFixed(4)}° E (Verified Geocode)</span>
                         </p>
                       )}
 
@@ -444,9 +481,9 @@ export default function PropertiesPage({
                       <MapPin className="w-3.5 h-3.5 text-emerald-600" />
                       <span>Interactive Location & Satellite Map for {property.name}</span>
                     </span>
-                    <span className="text-[11px] text-slate-400">Live coordinates: {property.latitude || 12.9345}° N, {property.longitude || 77.6221}° E</span>
+                    <span className="text-[11px] text-emerald-700 font-mono font-medium">Exact Marker: {property.latitude ? property.latitude.toFixed(4) : '12.9345'}° N, {property.longitude ? property.longitude.toFixed(4) : '77.6221'}° E</span>
                   </div>
-                  <PropertyMapViewer property={property} height="320px" showControls={true} showLandmarks={true} />
+                  <PropertyMapViewer property={property} currentUser={currentUser} height="320px" showControls={true} showLandmarks={true} />
                 </div>
               )}
 
@@ -553,6 +590,27 @@ export default function PropertiesPage({
           );
         })}
       </div>
+      )}
+
+      {/* Empty State for Grid View */}
+      {viewMode === 'grid' && myProperties.length === 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-3">
+          <Building2 className="w-10 h-10 text-slate-300 mx-auto" />
+          <h3 className="text-base font-bold text-slate-700">No Properties in Your Portfolio</h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            You haven't listed any properties under your landlord account yet. Click "List New Property" to add a property with its exact location pinpointed on the map.
+          </p>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={onOpenAddProperty}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors inline-flex items-center space-x-1.5 shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              <span>List First Property</span>
+            </button>
+          )}
+        </div>
       )}
 
     </div>

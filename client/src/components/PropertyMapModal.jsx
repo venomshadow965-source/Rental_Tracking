@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import PropertyMapViewer from './PropertyMapViewer';
 
-export default function PropertyMapModal({ property, unit = null, onClose }) {
+export default function PropertyMapModal({ property, unit = null, currentUser = null, onClose }) {
   if (!property) return null;
 
   return (
@@ -29,8 +29,13 @@ export default function PropertyMapModal({ property, unit = null, onClose }) {
                   Property Map Location
                 </h3>
                 <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                  Verified Address
+                  Verified Geocode Pin
                 </span>
+                {currentUser?.role === 'admin' && (
+                  <span className="text-[10px] bg-amber-50 text-amber-800 border border-amber-200 font-bold px-2 py-0.5 rounded-full">
+                    👑 Owned by {currentUser?.name || 'You'}
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-500">
                 <strong>{property.name}</strong> • {property.address}, {property.city}, {property.state} - {property.pincode}
@@ -53,6 +58,7 @@ export default function PropertyMapModal({ property, unit = null, onClose }) {
           <PropertyMapViewer
             property={property}
             unit={unit}
+            currentUser={currentUser}
             height="480px"
             showControls={true}
             showLandmarks={true}

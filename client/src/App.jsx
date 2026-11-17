@@ -107,13 +107,15 @@ export default function App() {
 
   const loadUserScopedData = async () => {
     try {
-      const [agrsRes, invsRes, metersRes, billsRes, damagesRes, notifsRes] = await Promise.all([
+      const [agrsRes, invsRes, metersRes, billsRes, damagesRes, notifsRes, propsRes, unitsRes] = await Promise.all([
         api.getAgreements(),
         api.getRentInvoices(),
         api.getMeters(),
         api.getUtilityBills(),
         api.getDamages(),
-        api.getNotifications()
+        api.getNotifications(),
+        api.getProperties(),
+        api.getUnits()
       ]);
 
       if (agrsRes.success) setAgreements(agrsRes.agreements);
@@ -122,6 +124,8 @@ export default function App() {
       if (billsRes.success) setUtilityBills(billsRes.bills);
       if (damagesRes.success) setDamages(damagesRes.damages);
       if (notifsRes.success) setNotifications(notifsRes.notifications);
+      if (propsRes.success) setProperties(propsRes.properties);
+      if (unitsRes.success) setUnits(unitsRes.units);
     } catch (err) {
       console.error('Failed to load user scoped data', err);
     }
@@ -693,6 +697,7 @@ export default function App() {
       {viewingMapProperty && (
         <PropertyMapModal
           property={viewingMapProperty}
+          currentUser={currentUser}
           onClose={() => setViewingMapProperty(null)}
         />
       )}

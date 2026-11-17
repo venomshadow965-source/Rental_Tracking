@@ -43,6 +43,12 @@ export default function DashboardPage({
   onOpenMap
 }) {
   const isAdmin = currentUser?.role === 'admin';
+  const myProperties = properties.filter(p => {
+    if (isAdmin) {
+      return p.landlordId === currentUser?.id || (!p.landlordId && currentUser?.id === 'usr_admin');
+    }
+    return true;
+  });
   const tenantProperty = properties.find(p => p.id === currentUser?.propertyId) || properties[0];
 
   // Common stats
@@ -77,7 +83,7 @@ export default function DashboardPage({
             </h1>
             <p className="text-emerald-100 text-sm max-w-xl">
               {isAdmin 
-                ? `You are overseeing ${properties.length} residential properties with ${unpaidInvoices.length} pending rent collections and ${pendingDamages.length} damage claims.`
+                ? `You are overseeing ${myProperties.length} residential properties with ${unpaidInvoices.length} pending rent collections and ${pendingDamages.length} damage claims.`
                 : `You are residing at ${currentUser?.unitNumber} in ${currentUser?.propertyName}. Track your rent, government meters, and damage repair claims easily.`
               }
             </p>
@@ -266,7 +272,7 @@ export default function DashboardPage({
                 </div>
               </div>
               <div className="text-2xl font-black text-slate-900">
-                {properties.length} Listed
+                {myProperties.length} Listed
               </div>
               <p className="text-[11px] text-emerald-700 font-semibold flex items-center space-x-1">
                 <span>Manage Portfolio →</span>
@@ -415,6 +421,7 @@ export default function DashboardPage({
               <PropertyMapViewer
                 property={tenantProperty}
                 unit={currentUser?.unitNumber}
+                currentUser={currentUser}
                 height="300px"
                 showControls={true}
                 showLandmarks={true}

@@ -217,6 +217,46 @@
           "tenantId": null,
           "tenantName": null
         }
+      ],
+      "latitude": 13.0768,
+      "longitude": 77.5583,
+      "landlordId": "usr_admin",
+      "landlordName": "Rajesh Sharma",
+      "landlordPhone": "+91 98765 43210"
+    },
+    {
+      "id": "prop_1794899782332",
+      "landlordId": "usr_admin",
+      "landlordName": "Rajesh Sharma",
+      "landlordPhone": "+91 98765 43210",
+      "name": "44, Pajaka",
+      "propertyType": "Multi-family Residential Building",
+      "address": "2nd A cross, Jakkur Layout",
+      "city": "Bengaluru",
+      "state": "Karnataka",
+      "pincode": "560064",
+      "latitude": 13.0784,
+      "longitude": 77.607,
+      "landmarks": [
+        "Near Metro Station",
+        "Grocery Market (500m)"
+      ],
+      "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=44%2C%20Pajaka%2C%202nd%20A%20cross%2C%20Jakkur%20Layout%2C%20Bengaluru%2C%20Karnataka%20560064",
+      "directionsUrl": "https://www.google.com/maps/dir/?api=1&destination=2nd%20A%20cross%2C%20Jakkur%20Layout%2C%20Bengaluru%2C%20Karnataka",
+      "totalUnits": 1,
+      "units": [
+        {
+          "id": "unit_1794899782332_1",
+          "number": "1",
+          "floor": "1st Floor",
+          "type": "2 BHK",
+          "rent": 22000,
+          "maintenance": 1000,
+          "deposit": 110000,
+          "status": "vacant",
+          "tenantId": null,
+          "tenantName": null
+        }
       ]
     }
   ],
@@ -1149,6 +1189,18 @@
     }
   ],
   "notifications": [
+    {
+      "id": "notif_1794899782333",
+      "userId": "usr_admin",
+      "title": "Property Listed: 44, Pajaka",
+      "message": "\"44, Pajaka\" with 1 unit(s) has been successfully listed in Bengaluru. Units are now open for tenant registration and agreements.",
+      "type": "property_listed",
+      "severity": "success",
+      "read": true,
+      "createdAt": "2026-11-17T07:16:22.333Z",
+      "actionUrl": "/properties",
+      "actionText": "View Properties"
+    },
     {
       "id": "notif_1794899325236",
       "userId": "usr_tenant_1",

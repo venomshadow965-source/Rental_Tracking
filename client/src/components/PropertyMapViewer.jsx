@@ -12,35 +12,55 @@ import {
   Building2, 
   Share2,
   ShieldCheck,
-  Sparkles
+  Sparkles,
+  Crosshair,
+  Award
 } from 'lucide-react';
 
 export default function PropertyMapViewer({
   property,
   unit = null,
+  currentUser = null,
   height = '360px',
   showControls = true,
   showLandmarks = true
 }) {
   const [mapType, setMapType] = useState('m'); // 'm' = roadmap, 'k' = satellite, 'p' = terrain
-  const [zoomLevel, setZoomLevel] = useState(15);
+  const [zoomLevel, setZoomLevel] = useState(16);
   const [copied, setCopied] = useState(false);
 
   if (!property) return null;
 
   const fullAddress = `${property.name ? property.name + ', ' : ''}${property.address}, ${property.city}, ${property.state} - ${property.pincode || ''}`;
-  const coordinatesText = property.latitude && property.longitude 
-    ? `${property.latitude.toFixed(4)}° N, ${property.longitude.toFixed(4)}° E` 
-    : '12.9716° N, 77.5946° E';
+  
+  const hasExactCoords = Boolean(
+    property.latitude !== undefined && 
+    property.longitude !== undefined && 
+    !isNaN(property.latitude) && 
+    !isNaN(property.longitude) &&
+    Number(property.latitude) !== 0
+  );
 
-  // Google Maps URL queries
-  const searchQuery = encodeURIComponent(fullAddress);
-  const embedUrl = `https://maps.google.com/maps?q=${searchQuery}&t=${mapType}&z=${zoomLevel}&ie=UTF8&iwloc=&output=embed`;
-  const directionsUrl = property.directionsUrl || `https://www.google.com/maps/dir/?api=1&destination=${searchQuery}`;
-  const googleMapsUrl = property.googleMapsUrl || `https://www.google.com/maps/search/?api=1&query=${searchQuery}`;
+  const lat = hasExactCoords ? Number(property.latitude).toFixed(4) : '12.9716';
+  const lng = hasExactCoords ? Number(property.longitude).toFixed(4) : '77.5946';
+  const coordinatesText = `${lat}° N, ${lng}° E`;
+  const propLabel = encodeURIComponent(property.name || 'Property');
+
+  // Exact pinpoint marker query: q=${lat},${lng} drops the marker exactly on the property coordinates
+  const embedUrl = `https://maps.google.com/maps?q=${lat},${lng}+(${propLabel})&ll=${lat},${lng}&t=${mapType}&z=${zoomLevel}&ie=UTF8&iwloc=A&output=embed`;
+  const directionsUrl = property.directionsUrl || `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  const googleMapsUrl = property.googleMapsUrl || `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+
+  const isMyProperty = Boolean(
+    currentUser && (
+      currentUser.role !== 'admin' || 
+      property.landlordId === currentUser.id || 
+      (!property.landlordId && currentUser.id === 'usr_admin')
+    )
+  );
 
   const handleCopyLocation = () => {
-    navigator.clipboard.writeText(`${fullAddress} (Coordinates: ${coordinatesText})`);
+    navigator.clipboard.writeText(`${fullAddress} (Exact Coordinates: ${coordinatesText})`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -71,9 +91,16 @@ export default function PropertyMapViewer({
                     {unit.number || unit}
                   </span>
                 )}
+                {isMyProperty && (
+                  <span className="text-[10px] bg-amber-100 text-amber-900 font-bold px-1.5 py-0.2 rounded border border-amber-300 flex items-center space-x-1">
+                    <span>👑</span>
+                    <span>Landlord Verified</span>
+                  </span>
+                )}
               </div>
-              <p className="text-[11px] text-slate-500 font-mono">
-                Coordinates: {coordinatesText}
+              <p className="text-[11px] text-slate-500 font-mono flex items-center space-x-1">
+                <Crosshair className="w-3 h-3 text-emerald-600" />
+                <span>Exact Marker Pin: <strong>{coordinatesText}</strong></span>
               </p>
             </div>
           </div>
@@ -132,26 +159,42 @@ export default function PropertyMapViewer({
         </div>
       )}
 
-      {/* Embedded Map Canvas */}
+      {/* Embedded Map Canvas with Exact Coordinate Pin */}
       <div className="relative w-full bg-slate-100" style={{ height }}>
         <iframe
           src={embedUrl}
-          title={`Location map of ${property.name}`}
+          title={`Location map of ${property.name} at ${coordinatesText}`}
           className="w-full h-full border-0"
           loading="lazy"
           allowFullScreen
           referrerPolicy="no-referrer-when-downgrade"
         />
 
-        {/* Live Pin Overlay Banner */}
+        {/* Live Pin Overlay Banner (Top-Left) */}
         <div className="absolute top-3 left-3 bg-white/95 backdrop-blur shadow-md border border-slate-200/90 rounded-xl px-3 py-2 text-xs flex items-center space-x-2 pointer-events-none">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-          <span className="font-bold text-slate-800">
-            {property.name} Pinpoint
-          </span>
-          <span className="text-[10px] text-slate-400 font-mono">
-            {property.city}
-          </span>
+          <div className="relative flex items-center justify-center">
+            <div className="w-3 h-3 rounded-full bg-rose-600 animate-ping opacity-75" />
+            <div className="w-2.5 h-2.5 rounded-full bg-rose-600 absolute" />
+          </div>
+          <div>
+            <div className="flex items-center space-x-1.5">
+              <span className="font-bold text-slate-900">
+                {property.name}
+              </span>
+              <span className="text-[9px] uppercase font-mono font-bold bg-rose-100 text-rose-800 px-1 rounded">
+                EXACT PIN
+              </span>
+            </div>
+            <span className="text-[10px] text-slate-500 font-mono block">
+              📍 {coordinatesText}
+            </span>
+          </div>
+        </div>
+
+        {/* Landlord Ownership Tag (Top-Right) */}
+        <div className="absolute top-3 right-3 bg-white/95 backdrop-blur shadow-md border border-amber-300 rounded-xl px-2.5 py-1.5 text-[11px] font-bold text-amber-900 flex items-center space-x-1.5 pointer-events-none">
+          <span>👑</span>
+          <span>Owned by {property.landlordName || (isMyProperty && currentUser?.name ? currentUser.name : 'Rajesh Sharma')}</span>
         </div>
       </div>
 
@@ -167,10 +210,10 @@ export default function PropertyMapViewer({
             type="button"
             onClick={handleCopyLocation}
             className="flex items-center space-x-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-xs transition-colors"
-            title="Copy address and coordinates to clipboard"
+            title="Copy address and exact coordinates to clipboard"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copied ? 'Copied!' : 'Copy'}</span>
+            <span>{copied ? 'Copied Coordinates!' : 'Copy Location'}</span>
           </button>
 
           <a
@@ -178,10 +221,10 @@ export default function PropertyMapViewer({
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center space-x-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition-colors shadow-2xs"
-            title="Open turn-by-turn GPS directions in Google Maps"
+            title="Open turn-by-turn GPS navigation in Google Maps"
           >
             <Navigation className="w-3.5 h-3.5" />
-            <span>Get Directions</span>
+            <span>GPS Directions</span>
           </a>
 
           <a
@@ -189,10 +232,10 @@ export default function PropertyMapViewer({
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center space-x-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-xs transition-colors"
-            title="Open in full Google Maps website"
+            title="Open exact pinpoint in Google Maps app / web"
           >
             <ExternalLink className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Google Maps</span>
+            <span className="hidden sm:inline">Open in Maps</span>
           </a>
         </div>
       </div>

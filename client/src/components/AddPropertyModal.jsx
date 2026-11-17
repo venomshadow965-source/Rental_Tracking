@@ -11,9 +11,14 @@ import {
   Sparkles,
   Layers,
   Compass,
-  Navigation
+  Navigation,
+  Crosshair,
+  LocateFixed,
+  CheckCircle2,
+  RefreshCw
 } from 'lucide-react';
 import PropertyMapViewer from './PropertyMapViewer';
+import { geocodeAddress, getBrowserGeolocation } from '../services/geocoding';
 
 export default function AddPropertyModal({ onClose, onSubmit }) {
   const [name, setName] = useState('');
@@ -25,6 +30,8 @@ export default function AddPropertyModal({ onClose, onSubmit }) {
   const [latitude, setLatitude] = useState(12.9116);
   const [longitude, setLongitude] = useState(77.6389);
   const [landmarksText, setLandmarksText] = useState('Near Metro Station, Grocery Market (500m)');
+  const [geocodeMsg, setGeocodeMsg] = useState('');
+  const [gpsLoading, setGpsLoading] = useState(false);
 
   // Units array
   const [units, setUnits] = useState([
@@ -92,9 +99,57 @@ export default function AddPropertyModal({ onClose, onSubmit }) {
     if (preset.landmarks) setLandmarksText(preset.landmarks.join(', '));
     setUnits(preset.units);
     setError('');
+    setGeocodeMsg(`📍 Coordinates set to ${preset.latitude}° N, ${preset.longitude}° E for ${preset.name}`);
+    setTimeout(() => setGeocodeMsg(''), 4000);
+  };
+
+  // Automatic geocoding resolver
+  const handleAutoGeocode = (customAddr = null) => {
+    const geo = geocodeAddress({
+      address: customAddr || address,
+      city,
+      pincode,
+      state
+    });
+    setLatitude(Number(geo.latitude.toFixed(4)));
+    setLongitude(Number(geo.longitude.toFixed(4)));
+    setGeocodeMsg(`📍 Exact Pinpoint: ${geo.matchedBy} (${geo.latitude}° N, ${geo.longitude}° E)`);
+    setTimeout(() => setGeocodeMsg(''), 5000);
+  };
+
+  const handleUseGps = async () => {
+    setGpsLoading(true);
+    setGeocodeMsg('');
+    try {
+      const pos = await getBrowserGeolocation();
+      setLatitude(Number(pos.latitude.toFixed(4)));
+      setLongitude(Number(pos.longitude.toFixed(4)));
+      setGeocodeMsg(`🎯 Device GPS Coordinates Locked: ${pos.latitude}° N, ${pos.longitude}° E`);
+      setTimeout(() => setGeocodeMsg(''), 5000);
+    } catch (err) {
+      setError('GPS Geolocation: ' + err.message);
+    } finally {
+      setGpsLoading(false);
+    }
   };
 
   const presets = [
+    {
+      title: 'Jakkur Layout North Villa',
+      name: 'Pajaka Residency',
+      propertyType: 'Multi-family Residential Building',
+      address: '2nd A Cross, Jakkur Layout',
+      city: 'Bengaluru',
+      state: 'Karnataka',
+      pincode: '560064',
+      latitude: 13.0784,
+      longitude: 77.6070,
+      landmarks: ['Jakkur Aerodrome (1.2 km)', 'Yelahanka South (2 km)', 'Bellary Road NH44 (800m)'],
+      units: [
+        { number: 'Flat 101', floor: '1st Floor', type: '2 BHK', rent: 22000, maintenance: 2000, deposit: 110000 },
+        { number: 'Flat 201', floor: '2nd Floor', type: '2 BHK', rent: 23000, maintenance: 2000, deposit: 115000 }
+      ]
+    },
     {
       title: 'HSR Layout 3-Unit Complex',
       name: 'Greenwood Residency',
@@ -282,7 +337,8 @@ export default function AddPropertyModal({ onClose, onSubmit }) {
                   required
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="e.g. 8th Cross, 4th Block, Koramangala"
+                  onBlur={() => handleAutoGeocode()}
+                  placeholder="e.g. 2nd A Cross, Jakkur Layout or Koramangala 4th Block"
                   className="w-full text-xs py-2.5 px-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 />
               </div>
@@ -296,6 +352,7 @@ export default function AddPropertyModal({ onClose, onSubmit }) {
                   required
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
+                  onBlur={() => handleAutoGeocode()}
                   className="w-full text-xs py-2.5 px-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 />
               </div>
@@ -322,8 +379,18 @@ export default function AddPropertyModal({ onClose, onSubmit }) {
                     required
                     maxLength={6}
                     value={pincode}
-                    onChange={(e) => setPincode(e.target.value)}
-                    placeholder="560034"
+                    onChange={(e) => {
+                      setPincode(e.target.value);
+                      if (e.target.value.length === 6) {
+                        const geo = geocodeAddress({ address, city, pincode: e.target.value, state });
+                        setLatitude(Number(geo.latitude.toFixed(4)));
+                        setLongitude(Number(geo.longitude.toFixed(4)));
+                        setGeocodeMsg(`📍 Pincode ${e.target.value} mapped to ${geo.matchedBy}`);
+                        setTimeout(() => setGeocodeMsg(''), 4000);
+                      }
+                    }}
+                    onBlur={() => handleAutoGeocode()}
+                    placeholder="560064"
                     className="w-full text-xs py-2.5 px-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"
                   />
                 </div>
@@ -345,34 +412,101 @@ export default function AddPropertyModal({ onClose, onSubmit }) {
             </div>
           </div>
 
-          {/* SECTION 2: Map Location Live Preview */}
+          {/* SECTION 2: Exact Map Location & Marker Pinpoint */}
           <div className="space-y-3 pt-4 border-t border-slate-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2 text-xs font-bold uppercase tracking-wider text-slate-700">
-                <Compass className="w-4 h-4 text-emerald-600" />
-                <span>2. Map Location & Live Satellite Preview</span>
+                <Crosshair className="w-4 h-4 text-emerald-600" />
+                <span>2. Exact Map Marker Pinpoint & Coordinates</span>
               </div>
-              <span className="text-[10px] text-emerald-800 bg-emerald-100 font-bold px-2 py-0.5 rounded-full">
-                Live Google Maps View
+              <span className="text-[10px] text-emerald-800 bg-emerald-100 font-bold px-2 py-0.5 rounded-full flex items-center space-x-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                <span>Exact GPS Coordinates</span>
               </span>
             </div>
 
             <p className="text-xs text-slate-500">
-              Both you and your tenants will be able to view this interactive map, get turn-by-turn GPS directions, and explore the neighborhood.
+              The map marker pin will be placed <strong>exactly</strong> at these geographical coordinates. Auto-detect from your address/pincode or fine-tune manually.
             </p>
 
+            {/* Geocode feedback banner */}
+            {geocodeMsg && (
+              <div className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl text-xs font-bold flex items-center space-x-2 animate-in fade-in duration-150">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <span>{geocodeMsg}</span>
+              </div>
+            )}
+
+            {/* Coordinate Pickers & Detect Buttons */}
+            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Latitude (° N) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    required
+                    value={latitude}
+                    onChange={(e) => setLatitude(Number(e.target.value))}
+                    className="w-full text-xs font-mono font-bold py-2 px-3 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-emerald-500"
+                    placeholder="e.g. 13.0784"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Longitude (° E) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    required
+                    value={longitude}
+                    onChange={(e) => setLongitude(Number(e.target.value))}
+                    className="w-full text-xs font-mono font-bold py-2 px-3 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-emerald-500"
+                    placeholder="e.g. 77.6070"
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons to Auto-Detect or use GPS */}
+              <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-200/80">
+                <button
+                  type="button"
+                  onClick={() => handleAutoGeocode()}
+                  className="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow-xs transition-colors"
+                >
+                  <Crosshair className="w-3.5 h-3.5" />
+                  <span>Auto-Detect Coordinates from Address</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleUseGps}
+                  disabled={gpsLoading}
+                  className="flex items-center space-x-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-bold rounded-lg text-xs transition-colors disabled:opacity-50"
+                >
+                  <LocateFixed className={`w-3.5 h-3.5 text-blue-600 ${gpsLoading ? 'animate-spin' : ''}`} />
+                  <span>{gpsLoading ? 'Acquiring GPS...' : 'Use My Device GPS Location'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Live Interactive Map Preview Centered on Exact Coordinates */}
             <PropertyMapViewer
               property={{
                 name: name || 'Property Location Preview',
-                address: address || 'Koramangala 4th Block',
+                address: address || 'Property Address',
                 city,
                 state,
                 pincode,
-                latitude,
-                longitude,
+                latitude: Number(latitude),
+                longitude: Number(longitude),
                 landmarks: landmarksText ? landmarksText.split(',').map(s => s.trim()).filter(Boolean) : []
               }}
-              height="240px"
+              height="260px"
               showControls={true}
               showLandmarks={false}
             />

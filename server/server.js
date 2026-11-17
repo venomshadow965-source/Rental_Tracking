@@ -14,6 +14,7 @@ import {
   calculateGovernmentBill,
   processBBPSGovernmentSettlement
 } from './services/governmentUtilityService.js';
+import { resolveServerCoordinates } from './services/geocodingService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -265,8 +266,30 @@ app.get('/api/properties', (req, res) => {
 
   let properties = db.properties;
   if (currentUser && currentUser.role === 'admin') {
+    // Only return properties owned by this landlord
     properties = properties.filter(p => p.landlordId === currentUser.id || (!p.landlordId && currentUser.id === 'usr_admin'));
+  } else if (currentUser && currentUser.role === 'tenant') {
+    // Tenant only sees their assigned property (or available properties)
+    if (currentUser.propertyId) {
+      properties = properties.filter(p => p.id === currentUser.propertyId);
+    }
   }
+
+  // Ensure all properties have guaranteed accurate latitude & longitude
+  properties = properties.map(p => {
+    if (!p.latitude || !p.longitude) {
+      const coords = resolveServerCoordinates({
+        address: p.address,
+        city: p.city,
+        pincode: p.pincode,
+        state: p.state
+      });
+      p.latitude = coords.lat;
+      p.longitude = coords.lng;
+    }
+    return p;
+  });
+
   res.json({ success: true, properties });
 });
 
@@ -299,12 +322,19 @@ app.post('/api/properties', (req, res) => {
 
   const propertyId = `prop_${Date.now()}`;
 
-  // Geolocation & Map Link Calculations
-  const lat = latitude ? Number(latitude) : (12.9200 + Math.random() * 0.05);
-  const lng = longitude ? Number(longitude) : (77.6100 + Math.random() * 0.05);
+  // Geolocation & Map Link Calculations with Exact Coordinates
+  const { lat, lng } = resolveServerCoordinates({
+    address,
+    city,
+    pincode,
+    state,
+    latitude,
+    longitude
+  });
+
   const fullAddressQuery = `${name.trim()}, ${address.trim()}, ${city.trim()}, ${state.trim()} ${pincode.trim()}`;
-  const gMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddressQuery)}`;
-  const dirUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${address.trim()}, ${city.trim()}, ${state.trim()}`)}`;
+  const gMapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+  const dirUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 
   // Process units
   const processedUnits = (units.length > 0 ? units : [
