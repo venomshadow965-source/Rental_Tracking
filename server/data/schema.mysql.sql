@@ -161,7 +161,7 @@ CREATE TABLE IF NOT EXISTS rent_invoices (
 CREATE TABLE IF NOT EXISTS government_meters (
   id VARCHAR(64) PRIMARY KEY,
   property_id VARCHAR(64) NOT NULL,
-  unit_id VARCHAR(64) NOT NULL,
+  unit_id VARCHAR(64) NULL,
   tenant_id VARCHAR(64) NULL,
   meter_type ENUM('electricity', 'water') NOT NULL,
   utility_provider VARCHAR(128) NOT NULL,
@@ -175,7 +175,7 @@ CREATE TABLE IF NOT EXISTS government_meters (
   government_document_ref VARCHAR(128) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (property_id) REFERENCES properties(id),
-  FOREIGN KEY (unit_id) REFERENCES units(id),
+  FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE SET NULL,
   FOREIGN KEY (tenant_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
@@ -184,7 +184,7 @@ CREATE TABLE IF NOT EXISTS utility_bills (
   id VARCHAR(64) PRIMARY KEY,
   meter_id VARCHAR(64) NOT NULL,
   tenant_id VARCHAR(64) NOT NULL,
-  unit_id VARCHAR(64) NOT NULL,
+  unit_id VARCHAR(64) NULL,
   billing_month VARCHAR(32) NOT NULL,
   previous_reading DECIMAL(10, 2) NOT NULL,
   current_reading DECIMAL(10, 2) NOT NULL,
@@ -200,14 +200,14 @@ CREATE TABLE IF NOT EXISTS utility_bills (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (meter_id) REFERENCES government_meters(id) ON DELETE CASCADE,
   FOREIGN KEY (tenant_id) REFERENCES users(id),
-  FOREIGN KEY (unit_id) REFERENCES units(id)
+  FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- 8. DAMAGE & REPAIR CLAIMS WITH INVOICES
 CREATE TABLE IF NOT EXISTS damage_reports (
   id VARCHAR(64) PRIMARY KEY,
   property_id VARCHAR(64) NOT NULL,
-  unit_id VARCHAR(64) NOT NULL,
+  unit_id VARCHAR(64) NULL,
   tenant_id VARCHAR(64) NOT NULL,
   title VARCHAR(255) NOT NULL,
   category VARCHAR(64) DEFAULT 'Plumbing',
