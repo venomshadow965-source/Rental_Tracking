@@ -27,6 +27,20 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 const DB_JSON_PATH = path.join(__dirname, '../data/db.json');
 const SCHEMA_SQL_PATH = path.join(__dirname, '../data/schema.mysql.sql');
 
+function formatMysqlDatetime(isoStr) {
+  if (!isoStr) return null;
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 19).replace('T', ' ');
+}
+
+function formatMysqlDate(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
 async function migrate() {
   console.log('🚀 Starting KirayaSetu JSON -> MySQL Database Migration...\n');
 
@@ -51,15 +65,20 @@ async function migrate() {
     connection = await mysql.createConnection(config);
     console.log(`✅ Connected to MySQL server at ${config.host}:${config.port}`);
 
-    // Create database & tables from schema.mysql.sql
-    if (fs.existsSync(SCHEMA_SQL_PATH)) {
+    // Check if database exists, if not create it
+    await connection.query(`CREATE DATABASE IF NOT EXISTS \`${process.env.MYSQL_DATABASE || 'kirayasetu_db'}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
+    await connection.changeUser({ database: process.env.MYSQL_DATABASE || 'kirayasetu_db' });
+
+    // Check if tables already exist
+    const [existingTables] = await connection.query("SHOW TABLES LIKE 'users'");
+    if (existingTables.length === 0 && fs.existsSync(SCHEMA_SQL_PATH)) {
       console.log('📦 Executing schema.mysql.sql...');
       const schemaSql = fs.readFileSync(SCHEMA_SQL_PATH, 'utf-8');
       await connection.query(schemaSql);
-      console.log('✅ Schema & tables verified successfully.');
+      console.log('✅ Schema & tables created successfully.');
+    } else {
+      console.log('✅ Database tables already initialized.');
     }
-
-    await connection.changeUser({ database: process.env.MYSQL_DATABASE || 'kirayasetu_db' });
 
     // 1. Migrate Users
     console.log(`\n⏳ Migrating ${dbData.users.length} Users...`);
@@ -111,6 +130,12 @@ async function migrate() {
     // 3. Migrate Agreements
     console.log(`\n⏳ Migrating ${(dbData.agreements || []).length} Agreements...`);
     for (const a of (dbData.agreements || [])) {
+      let resolvedTenantId = a.tenantId;
+      if (!resolvedTenantId || !dbData.users.some(u => u.id === resolvedTenantId)) {
+        const match = dbData.users.find(u => (a.tenantEmail && u.email === a.tenantEmail) || (a.tenantName && u.name === a.tenantName));
+        resolvedTenantId = match ? match.id : (dbData.users.find(u => u.role === 'tenant')?.id || 'usr_tenant_1');
+      }
+
       await connection.execute(
         `INSERT INTO agreements (
            id, agreement_number, property_id, unit_id, landlord_id, tenant_id,
@@ -125,15 +150,15 @@ async function migrate() {
          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE status=VALUES(status), tenant_signed=VALUES(tenant_signed)`,
         [
-          a.id, a.agreementNumber, a.propertyId, a.unitId, a.landlordId || 'usr_admin', a.tenantId,
+          a.id, a.agreementNumber, a.propertyId, a.unitId, a.landlordId || 'usr_admin', resolvedTenantId,
           a.landlordName, a.landlordFatherName || null, a.landlordAadhaar || null, a.landlordPan || null, a.landlordPhone || null, a.landlordAddress || null,
           a.tenantName, a.tenantFatherName || null, a.tenantAadhaar, a.tenantPan || null, a.tenantPhone, a.tenantEmail || null, a.tenantPermanentAddress || null,
-          a.termMonths || 11, a.startDate, a.endDate, a.monthlyRent, a.securityDeposit, a.maintenanceCharges || 0,
+          a.termMonths || 11, formatMysqlDate(a.startDate), formatMysqlDate(a.endDate), a.monthlyRent, a.securityDeposit, a.maintenanceCharges || 0,
           a.rentDueDateDay || 5, a.lockInPeriodMonths || 3, a.noticePeriodMonths || 1, a.annualEscalationPercent || 5,
           a.electricityMeterNo || null, a.electricityConsumerId || null, a.waterMeterNo || null, a.waterConsumerId || null,
           a.stampCertificateNo || null, a.stampDutyAmount || 500, a.stampIssueState || 'Government of Karnataka',
           a.witness1Name || null, a.witness1Address || null, a.witness2Name || null, a.witness2Address || null,
-          a.status || 'sent_to_tenant', a.landlordSigned ? 1 : 0, a.landlordSignedAt || null, a.tenantSigned ? 1 : 0, a.tenantSignedAt || null, a.tenantSignatureRef || null, a.notes || null
+          a.status || 'sent_to_tenant', a.landlordSigned ? 1 : 0, formatMysqlDatetime(a.landlordSignedAt), a.tenantSigned ? 1 : 0, formatMysqlDatetime(a.tenantSignedAt), a.tenantSignatureRef || null, a.notes || null
         ]
       );
     }
@@ -142,14 +167,32 @@ async function migrate() {
     // 4. Migrate Invoices
     console.log(`\n⏳ Migrating ${(dbData.rentInvoices || []).length} Invoices...`);
     for (const inv of (dbData.rentInvoices || [])) {
+      const propId = inv.propertyId || dbData.properties.find(p => (p.units || []).some(u => u.id === inv.unitId))?.id || 'prop_1';
+      const landlordId = inv.landlordId || dbData.properties.find(p => p.id === propId)?.landlordId || 'usr_admin';
+
       await connection.execute(
         `INSERT INTO rent_invoices (id, invoice_number, property_id, unit_id, landlord_id, tenant_id, billing_month, base_rent, maintenance_charges, water_charges, electricity_charges, total_amount, due_date, status, paid_at, payment_method, transaction_ref, receipt_number)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE status=VALUES(status), paid_at=VALUES(paid_at)`,
         [
-          inv.id, inv.invoiceNumber, inv.propertyId, inv.unitId, inv.landlordId || 'usr_admin', inv.tenantId,
-          inv.billingMonth, inv.baseRent, inv.maintenanceCharges || 0, inv.waterCharges || 0, inv.electricityCharges || 0,
-          inv.totalAmount, inv.dueDate, inv.status || 'unpaid', inv.paidAt || null, inv.paymentMethod || null, inv.transactionRef || null, inv.receiptNumber || null
+          inv.id,
+          inv.invoiceNumber,
+          propId,
+          inv.unitId,
+          landlordId,
+          inv.tenantId,
+          inv.billingMonth,
+          inv.baseRent ?? 0,
+          inv.maintenanceCharges ?? 0,
+          inv.waterElectricityAddon ?? 0,
+          0,
+          inv.totalAmount ?? 0,
+          formatMysqlDate(inv.dueDate),
+          inv.status || 'unpaid',
+          formatMysqlDatetime(inv.paidAt),
+          inv.paymentMethod || null,
+          inv.transactionRef || null,
+          inv.receiptNumber || null
         ]
       );
     }
@@ -158,13 +201,14 @@ async function migrate() {
     // 5. Migrate Government Meters
     console.log(`\n⏳ Migrating ${(dbData.meters || []).length} Government Meters...`);
     for (const m of (dbData.meters || [])) {
+      const propId = m.propertyId || dbData.properties.find(p => (p.units || []).some(u => u.id === m.unitId))?.id || 'prop_1';
       await connection.execute(
         `INSERT INTO government_meters (id, property_id, unit_id, tenant_id, meter_type, utility_provider, consumer_id, meter_number, sanctioned_load, phase_type, initial_reading, current_reading, status, government_document_ref)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE current_reading=VALUES(current_reading)`,
         [
-          m.id, m.propertyId, m.unitId, m.tenantId || null, m.meterType, m.utilityProvider, m.consumerId, m.meterNumber,
-          m.sanctionedLoad || null, m.phaseType || 'Single Phase Domestic', m.initialReading || 0, m.currentReading || 0, m.status || 'active', m.governmentDocumentRef || null
+          m.id, propId, m.unitId, m.tenantId || null, m.meterType, m.utilityProvider, m.consumerId, m.meterNumber,
+          m.sanctionedLoad || null, m.phaseType || 'Single Phase Domestic', m.initialReading ?? 0, m.currentReading ?? 0, m.status || 'active', m.governmentDocumentRef || null
         ]
       );
     }
@@ -178,8 +222,8 @@ async function migrate() {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE status=VALUES(status), paid_at=VALUES(paid_at)`,
         [
-          b.id, b.meterId, b.tenantId, b.unitId, b.billingMonth, b.previousReading, b.currentReading, b.unitsConsumed,
-          b.ratePerUnit || 7.5, b.fixedCharges || 120, b.amount, b.billDate, b.dueDate, b.status || 'unpaid', b.paidAt || null, b.paymentRef || null
+          b.id, b.meterId, b.tenantId, b.unitId, b.billingMonth, b.previousReading ?? 0, b.currentReading ?? 0, b.unitsConsumed ?? 0,
+          b.ratePerUnit ?? 7.5, b.fixedCharges ?? 120, b.amount ?? 0, formatMysqlDate(b.billDate), formatMysqlDate(b.dueDate), b.status || 'unpaid', formatMysqlDatetime(b.paidAt), b.paymentRef || null
         ]
       );
     }
@@ -188,15 +232,16 @@ async function migrate() {
     // 7. Migrate Damage Reports
     console.log(`\n⏳ Migrating ${(dbData.damages || []).length} Damage Reports...`);
     for (const d of (dbData.damages || [])) {
+      const propId = d.propertyId || dbData.properties.find(p => (p.units || []).some(u => u.id === d.unitId))?.id || 'prop_1';
       await connection.execute(
         `INSERT INTO damage_reports (id, property_id, unit_id, tenant_id, title, category, severity, incident_date, description, repair_cost, cost_payer, invoice_number, invoice_file_path, status, admin_notes, reimbursed_at, transaction_ref)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE status=VALUES(status)`,
         [
-          d.id, d.propertyId, d.unitId, d.tenantId, d.title, d.category || 'Plumbing', d.severity || 'Medium',
-          d.incidentDate || new Date().toISOString().split('T')[0], d.description, d.repairCost, d.costPayer || 'landlord',
+          d.id, propId, d.unitId, d.tenantId, d.title, d.category || 'Plumbing', d.severity || 'Medium',
+          formatMysqlDate(d.incidentDate || new Date()), d.description, d.repairCost ?? 0, d.costPayer || 'landlord',
           d.invoice?.invoiceNumber || null, d.invoice?.fileUrl || null, d.status || 'reported',
-          d.adminReview?.notes || null, d.adminReview?.reimbursedAt || null, d.adminReview?.transactionRef || null
+          d.adminReview?.notes || null, formatMysqlDatetime(d.adminReview?.reimbursedAt), d.adminReview?.transactionRef || null
         ]
       );
     }
