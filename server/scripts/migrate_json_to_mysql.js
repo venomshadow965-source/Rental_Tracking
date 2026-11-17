@@ -16,9 +16,13 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import mysql from 'mysql2/promise';
+import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Automatically load environment variables from server/.env
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const DB_JSON_PATH = path.join(__dirname, '../data/db.json');
 const SCHEMA_SQL_PATH = path.join(__dirname, '../data/schema.mysql.sql');
