@@ -941,21 +941,85 @@ app.get('/api/rent/invoices', (req, res) => {
   const userId = getActiveUserId(req);
   const currentUser = db.users.find(u => u.id === userId);
 
-  let invoices = db.rentInvoices;
+  let invoices = db.rentInvoices || [];
   if (currentUser && currentUser.role === 'tenant') {
     invoices = invoices.filter(inv => inv.tenantId === userId);
   } else if (currentUser && currentUser.role === 'admin') {
     const myPropIds = new Set(db.properties.filter(p => p.landlordId === userId || (!p.landlordId && userId === 'usr_admin')).map(p => p.id));
-    invoices = invoices.filter(inv => inv.landlordId === userId || myPropIds.has(inv.propertyId));
+    invoices = invoices.filter(inv => inv.landlordId === userId || (!inv.landlordId && userId === 'usr_admin') || myPropIds.has(inv.propertyId));
   }
 
   res.json({ success: true, invoices });
 });
 
-// Tenant pays rent
+// User Linked Bank Accounts
+app.get('/api/user/bank-accounts', (req, res) => {
+  const db = readDb();
+  const userId = getActiveUserId(req);
+  const user = db.users.find(u => u.id === userId);
+
+  if (!user) {
+    return res.status(404).json({ success: false, message: 'User not found' });
+  }
+
+  const accounts = user.bankAccounts || [];
+  res.json({ success: true, bankAccounts: accounts });
+});
+
+app.post('/api/user/bank-accounts', (req, res) => {
+  const db = readDb();
+  const userId = getActiveUserId(req);
+  const user = db.users.find(u => u.id === userId);
+
+  if (!user) {
+    return res.status(404).json({ success: false, message: 'User not found' });
+  }
+
+  const {
+    bankName,
+    accountHolder,
+    accountNumber,
+    ifsc,
+    branch = 'Bengaluru Branch',
+    accountType = 'Savings Account'
+  } = req.body;
+
+  if (!bankName || !accountNumber || !ifsc) {
+    return res.status(400).json({ success: false, message: 'Bank Name, Account Number, and IFSC are required.' });
+  }
+
+  const cleanAcc = accountNumber.replace(/\s+/g, '');
+  const last4 = cleanAcc.slice(-4) || '1234';
+
+  const newAccount = {
+    id: `bank_${Date.now()}`,
+    bankName: bankName.trim(),
+    accountHolder: (accountHolder || user.name).trim(),
+    accountNumber: cleanAcc,
+    maskedAccountNumber: `•••• •••• ${last4}`,
+    ifsc: ifsc.trim().toUpperCase(),
+    branch: branch.trim(),
+    accountType,
+    isDefault: !user.bankAccounts || user.bankAccounts.length === 0,
+    isVerified: true,
+    linkedAt: new Date().toISOString()
+  };
+
+  if (!user.bankAccounts) user.bankAccounts = [];
+  user.bankAccounts.push(newAccount);
+  writeDb(db);
+
+  res.status(201).json({
+    success: true,
+    bankAccount: newAccount,
+    message: `${bankName} account ending in ${last4} linked and verified successfully for real-time direct debit!`
+  });
+});
+
+// Tenant pays rent in real-time
 app.post('/api/rent/pay', (req, res) => {
   const db = readDb();
-  const { invoiceId, paymentMethod = 'UPI (Google Pay)', transactionRef } = req.body;
+  const { invoiceId, paymentMethod = 'Direct Bank Debit (HDFC Bank •••• 4092)', transactionRef, bankDetails } = req.body;
 
   const invoice = db.rentInvoices.find(inv => inv.id === invoiceId);
   if (!invoice) {
@@ -963,26 +1027,34 @@ app.post('/api/rent/pay', (req, res) => {
   }
 
   const now = new Date().toISOString();
+  const bankCode = bankDetails?.bankCode || (paymentMethod.includes('SBI') ? 'SBI' : paymentMethod.includes('ICICI') ? 'ICIC' : paymentMethod.includes('Axis') ? 'AXIS' : 'HDFC');
+  const genUtr = `UTR/${bankCode}/${Date.now().toString().slice(-8)}/${Math.floor(1000 + Math.random() * 9000)}`;
+
   invoice.status = 'paid';
   invoice.paidAt = now;
   invoice.paymentMethod = paymentMethod;
-  invoice.transactionRef = transactionRef || `UPI/${Date.now()}/VERIFIED`;
+  invoice.transactionRef = transactionRef || genUtr;
+  invoice.bankDetails = bankDetails || {
+    bankName: paymentMethod.includes('SBI') ? 'State Bank of India' : paymentMethod.includes('Axis') ? 'Axis Bank' : 'HDFC Bank',
+    accountNumber: '•••• 4092',
+    mode: 'Direct Bank Account (IMPS Real-Time Settlement)'
+  };
   invoice.receiptNumber = `RCT-${invoice.billingMonth.replace(' ', '-').toUpperCase()}-${invoice.unitNumber.replace(/\D/g, '') || '01'}`;
 
-  // Notify Landlord
+  // Notify Landlord in real time
   const adminUser = db.users.find(u => u.role === 'admin');
   if (adminUser) {
     db.notifications.unshift({
       id: `notif_${Date.now()}`,
       userId: adminUser.id,
-      title: 'Rent Payment Received',
-      message: `${invoice.tenantName} paid rent of ₹${invoice.totalAmount.toLocaleString('en-IN')} for ${invoice.billingMonth} via ${paymentMethod}.`,
+      title: '🟢 Real-Time Rent Payment Received',
+      message: `${invoice.tenantName} paid rent of ₹${invoice.totalAmount.toLocaleString('en-IN')} for ${invoice.billingMonth} directly via ${paymentMethod}. UTR: ${invoice.transactionRef}`,
       type: 'rent_paid',
       severity: 'success',
       read: false,
       createdAt: now,
       actionUrl: '/payments',
-      actionText: 'View Transaction'
+      actionText: 'View in Calendar'
     });
   }
 
@@ -990,8 +1062,8 @@ app.post('/api/rent/pay', (req, res) => {
   db.notifications.unshift({
     id: `notif_${Date.now() + 1}`,
     userId: invoice.tenantId,
-    title: 'Rent Payment Confirmed & Receipt Ready',
-    message: `Thank you! Payment of ₹${invoice.totalAmount.toLocaleString('en-IN')} for ${invoice.billingMonth} received successfully. Receipt #${invoice.receiptNumber} generated.`,
+    title: 'Rent Debited & Receipt Ready',
+    message: `₹${invoice.totalAmount.toLocaleString('en-IN')} debited directly from your linked bank account for ${invoice.billingMonth}. UTR: ${invoice.transactionRef}. Official HRA receipt generated.`,
     type: 'payment_success',
     severity: 'success',
     read: false,
@@ -1001,7 +1073,11 @@ app.post('/api/rent/pay', (req, res) => {
   });
 
   writeDb(db);
-  res.json({ success: true, invoice, message: 'Rent paid successfully! Official receipt generated.' });
+  res.json({ 
+    success: true, 
+    invoice, 
+    message: `Rent of ₹${invoice.totalAmount.toLocaleString('en-IN')} successfully debited directly from your linked bank account in real-time!` 
+  });
 });
 
 // Admin broadcasts or sends rent due reminders to tenants

@@ -157,17 +157,31 @@ export const api = {
     return res.json();
   },
 
-  // Rent & Payments
+  // Rent & Payments & Real-Time Bank Transfers
   async getRentInvoices() {
     const res = await fetch(`${API_BASE}/rent/invoices`, { headers: getHeaders() });
     return res.json();
   },
 
-  async payRent(invoiceId, paymentMethod, transactionRef) {
+  async getBankAccounts() {
+    const res = await fetch(`${API_BASE}/user/bank-accounts`, { headers: getHeaders() });
+    return res.json();
+  },
+
+  async linkBankAccount(data) {
+    const res = await fetch(`${API_BASE}/user/bank-accounts`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async payRent(invoiceId, paymentMethod, transactionRef, bankDetails = null) {
     const res = await fetch(`${API_BASE}/rent/pay`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ invoiceId, paymentMethod, transactionRef })
+      body: JSON.stringify({ invoiceId, paymentMethod, transactionRef, bankDetails })
     });
     return res.json();
   },

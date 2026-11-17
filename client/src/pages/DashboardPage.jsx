@@ -231,33 +231,39 @@ export default function DashboardPage({
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
         {isAdmin ? (
           <>
-            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+            <div 
+              onClick={() => onNavigate('payments')}
+              className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 hover:border-emerald-400 shadow-sm space-y-2 cursor-pointer transition-all group"
+            >
               <div className="flex items-center justify-between text-slate-400">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Collected Rent</span>
-                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 group-hover:text-emerald-700">Collected Rent</span>
+                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg group-hover:scale-110 transition-transform">
                   <CreditCard className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-2xl font-black text-slate-900">
+              <div className="text-2xl font-black text-slate-900 font-mono">
                 ₹{totalRentCollected.toLocaleString('en-IN')}
               </div>
               <p className="text-[11px] text-emerald-700 font-semibold flex items-center space-x-1">
-                <span>{paidInvoices.length} invoices cleared</span>
+                <span>{paidInvoices.length} invoices cleared • View Real-Time →</span>
               </p>
             </div>
 
-            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+            <div 
+              onClick={() => onNavigate('payments')}
+              className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 hover:border-amber-400 shadow-sm space-y-2 cursor-pointer transition-all group"
+            >
               <div className="flex items-center justify-between text-slate-400">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Pending Rent</span>
-                <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 group-hover:text-amber-700">Pending Rent</span>
+                <div className="p-2 bg-amber-50 text-amber-600 rounded-lg group-hover:scale-110 transition-transform">
                   <Clock className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-2xl font-black text-amber-800">
+              <div className="text-2xl font-black text-amber-800 font-mono">
                 ₹{totalRentPending.toLocaleString('en-IN')}
               </div>
               <p className="text-[11px] text-amber-700 font-semibold">
-                {unpaidInvoices.length} tenants pending
+                {unpaidInvoices.length} tenants pending • Calendar Track →
               </p>
             </div>
 

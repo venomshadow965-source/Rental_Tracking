@@ -635,6 +635,7 @@ export default function App() {
       {payingInvoice && (
         <RentPaymentModal
           invoice={payingInvoice}
+          currentUser={currentUser}
           onClose={() => setPayingInvoice(null)}
           onPaySuccess={handlePayRent}
         />
