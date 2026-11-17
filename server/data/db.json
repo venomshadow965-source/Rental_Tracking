@@ -1227,7 +1227,8 @@
       "paymentMethod": null,
       "transactionRef": null,
       "receiptNumber": null,
-      "bankDetails": null
+      "bankDetails": null,
+      "upiDetails": null
     },
     {
       "id": "inv_2026_10_usr_tenant_1",
@@ -2518,6 +2519,30 @@
     }
   ],
   "notifications": [
+    {
+      "id": "notif_1794904523597",
+      "userId": "usr_tenant_1794819900742",
+      "title": "Rent Debited & Receipt Ready",
+      "message": "₹45,000 debited directly from your linked bank account for November 2026. UTR: UTR/UPI/04523543/5341. Official HRA receipt generated.",
+      "type": "payment_success",
+      "severity": "success",
+      "read": false,
+      "createdAt": "2026-11-17T08:35:23.554Z",
+      "actionUrl": "/payments",
+      "actionText": "Download HRA Receipt"
+    },
+    {
+      "id": "notif_1794904523555",
+      "userId": "usr_admin",
+      "title": "🟢 Real-Time Rent Payment Received",
+      "message": "Achyuta Bidarahalli paid rent of ₹45,000 for November 2026 directly via Instant UPI (GPAY). UTR: UTR/UPI/04523543/5341",
+      "type": "rent_paid",
+      "severity": "success",
+      "read": false,
+      "createdAt": "2026-11-17T08:35:23.554Z",
+      "actionUrl": "/payments",
+      "actionText": "View in Calendar"
+    },
     {
       "id": "notif_1794903571238",
       "userId": "usr_tenant_1",

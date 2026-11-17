@@ -186,6 +186,15 @@ export const api = {
     return res.json();
   },
 
+  async simulateUpiScan(invoiceId, upiApp = 'Google Pay', payerVpa = null) {
+    const res = await fetch(`${API_BASE}/rent/simulate-upi-scan`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ invoiceId, upiApp, payerVpa })
+    });
+    return res.json();
+  },
+
   async sendRentReminders(tenantId, month, customMessage) {
     const res = await fetch(`${API_BASE}/rent/send-reminders`, {
       method: 'POST',

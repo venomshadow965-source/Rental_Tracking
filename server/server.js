@@ -1080,6 +1080,77 @@ app.post('/api/rent/pay', (req, res) => {
   });
 });
 
+// Real-Time UPI Scan & Server Settlement
+app.post('/api/rent/simulate-upi-scan', (req, res) => {
+  const db = readDb();
+  const { invoiceId, upiApp = 'Google Pay', payerVpa } = req.body;
+
+  const invoice = db.rentInvoices.find(inv => inv.id === invoiceId);
+  if (!invoice) {
+    return res.status(404).json({ success: false, message: 'Invoice not found' });
+  }
+
+  const npciRrn = String(Math.floor(400000000000 + Math.random() * 599999999999));
+  const utrRef = `UPI/NPCI/${npciRrn}`;
+  const now = new Date().toISOString();
+
+  invoice.status = 'paid';
+  invoice.paidAt = now;
+  invoice.paymentMethod = `Instant UPI (${upiApp})`;
+  invoice.transactionRef = utrRef;
+  invoice.upiDetails = {
+    upiApp,
+    payerVpa: payerVpa || `${(invoice.tenantName || 'tenant').toLowerCase().replace(/\s+/g, '.')}@okhdfcbank`,
+    payeeVpa: 'rajesh.landlord@okhdfcbank',
+    payeeName: 'Rajesh Sharma',
+    npciRrn,
+    settlementRail: 'NPCI UPI 2.0 Real-Time Switch',
+    status: 'CREDITED'
+  };
+  invoice.receiptNumber = `RCT-${invoice.billingMonth.replace(' ', '-').toUpperCase()}-${invoice.unitNumber.replace(/\D/g, '') || '01'}`;
+
+  // Notify Landlord in real time
+  const adminUser = db.users.find(u => u.role === 'admin');
+  if (adminUser) {
+    db.notifications.unshift({
+      id: `notif_${Date.now()}`,
+      userId: adminUser.id,
+      title: '🟢 Real-Time UPI Payment Confirmed',
+      message: `₹${invoice.totalAmount.toLocaleString('en-IN')} received on UPI Soundbox from ${invoice.tenantName} for ${invoice.billingMonth} via ${upiApp}. NPCI RRN: ${npciRrn}.`,
+      type: 'rent_paid',
+      severity: 'success',
+      read: false,
+      createdAt: now,
+      actionUrl: '/payments',
+      actionText: 'View in Calendar'
+    });
+  }
+
+  // Confirm to Tenant
+  db.notifications.unshift({
+    id: `notif_${Date.now() + 1}`,
+    userId: invoice.tenantId,
+    title: 'UPI Rent Payment Successful',
+    message: `Payment of ₹${invoice.totalAmount.toLocaleString('en-IN')} for ${invoice.billingMonth} debited via ${upiApp}. NPCI RRN: ${npciRrn}. Official HRA receipt generated.`,
+    type: 'payment_success',
+    severity: 'success',
+    read: false,
+    createdAt: now,
+    actionUrl: '/payments',
+    actionText: 'Download HRA Receipt'
+  });
+
+  writeDb(db);
+
+  res.json({
+    success: true,
+    invoice,
+    npciRrn,
+    soundboxText: `₹${invoice.totalAmount.toLocaleString('en-IN')} received on KirayaSetu UPI for Rajesh Sharma`,
+    message: `Payment of ₹${invoice.totalAmount.toLocaleString('en-IN')} confirmed in real time by NPCI UPI Gateway!`
+  });
+});
+
 // Admin broadcasts or sends rent due reminders to tenants
 app.post('/api/rent/send-reminders', (req, res) => {
   const db = readDb();
