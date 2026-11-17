@@ -4,9 +4,12 @@
   "description": "Comprehensive Rent, Damage, Agreement and Utility Tracking System for Indian Rental Market",
   "private": true,
   "scripts": {
+    "install:server": "npm install --prefix server",
+    "install:client": "npm install --prefix client",
+    "install:all": "npm install --prefix server && npm install --prefix client",
+    "build": "npm install --prefix server && npm install --prefix client && npm run build --prefix client",
     "start": "node server/server.js",
     "server": "node server/server.js",
-    "client": "npm run dev --prefix client",
-    "build": "npm run build --prefix client"
+    "client": "npm run dev --prefix client"
   }
 }
