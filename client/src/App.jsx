@@ -24,6 +24,7 @@ import InvoiceViewerModal from './components/InvoiceViewerModal';
 import RegisterMeterModal from './components/RegisterMeterModal';
 import AddReadingModal from './components/AddReadingModal';
 import PayUtilityModal from './components/PayUtilityModal';
+import PropertyMapModal from './components/PropertyMapModal';
 
 import { api, getSavedUserId, setSavedUserId, setSavedToken } from './services/api';
 
@@ -58,6 +59,7 @@ export default function App() {
   const [showRegisterMeter, setShowRegisterMeter] = useState(false);
   const [showAddReading, setShowAddReading] = useState(false);
   const [payingBill, setPayingBill] = useState(null);
+  const [viewingMapProperty, setViewingMapProperty] = useState(null);
 
   // Initial Load
   useEffect(() => {
@@ -427,6 +429,7 @@ export default function App() {
             onOpenAgreementViewer={(agr) => setViewingAgreement(agr)}
             onOpenViewInvoice={(dmg) => setViewingInvoiceDamage(dmg)}
             onSendRentReminders={handleSendRentReminders}
+            onOpenMap={(prop) => setViewingMapProperty(prop)}
           />
         )}
 
@@ -452,6 +455,7 @@ export default function App() {
               setTargetTenantForAgreement(tenantId);
               setShowCreateAgreement(true);
             }}
+            onOpenMap={(prop) => setViewingMapProperty(prop)}
           />
         )}
 
@@ -460,6 +464,7 @@ export default function App() {
             agreements={agreements}
             currentUser={currentUser}
             users={users}
+            properties={properties}
             onOpenCreateAgreement={(tenantId = null) => {
               if (!isAdmin) {
                 alert('Access Denied: Only Landlord Administrator can create rental agreements.');
@@ -469,6 +474,7 @@ export default function App() {
               setShowCreateAgreement(true);
             }}
             onOpenAgreementViewer={(agr) => setViewingAgreement(agr)}
+            onOpenMap={(prop) => setViewingMapProperty(prop)}
           />
         )}
 
@@ -535,6 +541,7 @@ export default function App() {
           currentUser={currentUser}
           onClose={() => setViewingAgreement(null)}
           onSignAgreement={handleSignAgreement}
+          onOpenMap={(prop) => setViewingMapProperty(prop)}
         />
       )}
 
@@ -629,6 +636,13 @@ export default function App() {
           bill={payingBill}
           onClose={() => setPayingBill(null)}
           onPaySuccess={handlePayUtilityBill}
+        />
+      )}
+
+      {viewingMapProperty && (
+        <PropertyMapModal
+          property={viewingMapProperty}
+          onClose={() => setViewingMapProperty(null)}
         />
       )}
 

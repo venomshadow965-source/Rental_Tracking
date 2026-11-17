@@ -9,8 +9,11 @@ import {
   DollarSign, 
   ShieldCheck, 
   Sparkles,
-  Layers
+  Layers,
+  Compass,
+  Navigation
 } from 'lucide-react';
+import PropertyMapViewer from './PropertyMapViewer';
 
 export default function AddPropertyModal({ onClose, onSubmit }) {
   const [name, setName] = useState('');
@@ -19,6 +22,9 @@ export default function AddPropertyModal({ onClose, onSubmit }) {
   const [city, setCity] = useState('Bengaluru');
   const [state, setState] = useState('Karnataka');
   const [pincode, setPincode] = useState('560102');
+  const [latitude, setLatitude] = useState(12.9116);
+  const [longitude, setLongitude] = useState(77.6389);
+  const [landmarksText, setLandmarksText] = useState('Near Metro Station, Grocery Market (500m)');
 
   // Units array
   const [units, setUnits] = useState([
@@ -81,6 +87,9 @@ export default function AddPropertyModal({ onClose, onSubmit }) {
     setCity(preset.city);
     setState(preset.state);
     setPincode(preset.pincode);
+    if (preset.latitude) setLatitude(preset.latitude);
+    if (preset.longitude) setLongitude(preset.longitude);
+    if (preset.landmarks) setLandmarksText(preset.landmarks.join(', '));
     setUnits(preset.units);
     setError('');
   };
@@ -94,6 +103,9 @@ export default function AddPropertyModal({ onClose, onSubmit }) {
       city: 'Bengaluru',
       state: 'Karnataka',
       pincode: '560102',
+      latitude: 12.9116,
+      longitude: 77.6389,
+      landmarks: ['HSR BDA Complex (1 km)', 'Agara Lake (1.5 km)', 'Silk Board Metro (2.5 km)'],
       units: [
         { number: 'Flat 101', floor: '1st Floor', type: '2 BHK', rent: 26000, maintenance: 2500, deposit: 130000 },
         { number: 'Flat 201', floor: '2nd Floor', type: '2 BHK', rent: 27000, maintenance: 2500, deposit: 135000 },
@@ -108,6 +120,9 @@ export default function AddPropertyModal({ onClose, onSubmit }) {
       city: 'Bengaluru',
       state: 'Karnataka',
       pincode: '560038',
+      latitude: 12.9719,
+      longitude: 77.6412,
+      landmarks: ['100ft Road Food & Shopping (300m)', 'Swami Vivekananda Metro (1.2 km)', 'CMH Hospital (1.5 km)'],
       units: [
         { number: 'Ground Villa', floor: 'Ground Floor', type: '3 BHK', rent: 45000, maintenance: 3500, deposit: 225000 },
         { number: 'First Floor Duplex', floor: '1st & 2nd Floor', type: '4 BHK Duplex', rent: 55000, maintenance: 4000, deposit: 275000 }
@@ -137,6 +152,10 @@ export default function AddPropertyModal({ onClose, onSubmit }) {
     setLoading(true);
     setError('');
 
+    const parsedLandmarks = landmarksText
+      ? landmarksText.split(',').map(s => s.trim()).filter(Boolean)
+      : [];
+
     try {
       await onSubmit({
         name,
@@ -145,6 +164,9 @@ export default function AddPropertyModal({ onClose, onSubmit }) {
         city,
         state,
         pincode,
+        latitude: Number(latitude) || 12.9352,
+        longitude: Number(longitude) || 77.6245,
+        landmarks: parsedLandmarks,
         units
       });
       onClose();
@@ -306,15 +328,62 @@ export default function AddPropertyModal({ onClose, onSubmit }) {
                   />
                 </div>
               </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                  <span>Nearby Landmarks & Transit (Comma separated)</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Shown to prospective tenants</span>
+                </label>
+                <input
+                  type="text"
+                  value={landmarksText}
+                  onChange={(e) => setLandmarksText(e.target.value)}
+                  placeholder="e.g. Koramangala BDA Complex (1 km), Sony World Signal (500m), Metro Station (1.8 km)"
+                  className="w-full text-xs py-2.5 px-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
             </div>
           </div>
 
-          {/* SECTION 2: Units Inventory Builder */}
+          {/* SECTION 2: Map Location Live Preview */}
+          <div className="space-y-3 pt-4 border-t border-slate-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2 text-xs font-bold uppercase tracking-wider text-slate-700">
+                <Compass className="w-4 h-4 text-emerald-600" />
+                <span>2. Map Location & Live Satellite Preview</span>
+              </div>
+              <span className="text-[10px] text-emerald-800 bg-emerald-100 font-bold px-2 py-0.5 rounded-full">
+                Live Google Maps View
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-500">
+              Both you and your tenants will be able to view this interactive map, get turn-by-turn GPS directions, and explore the neighborhood.
+            </p>
+
+            <PropertyMapViewer
+              property={{
+                name: name || 'Property Location Preview',
+                address: address || 'Koramangala 4th Block',
+                city,
+                state,
+                pincode,
+                latitude,
+                longitude,
+                landmarks: landmarksText ? landmarksText.split(',').map(s => s.trim()).filter(Boolean) : []
+              }}
+              height="240px"
+              showControls={true}
+              showLandmarks={false}
+            />
+          </div>
+
+          {/* SECTION 3: Units Inventory Builder */}
           <div className="space-y-4 pt-4 border-t border-slate-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2 text-xs font-bold uppercase tracking-wider text-slate-700">
                 <Layers className="w-4 h-4 text-emerald-600" />
-                <span>2. Units & Flats Inventory ({units.length})</span>
+                <span>3. Units & Flats Inventory ({units.length})</span>
               </div>
               <button
                 type="button"

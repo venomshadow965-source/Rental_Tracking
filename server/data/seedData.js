@@ -63,6 +63,11 @@ export const seedData = {
       state: "Karnataka",
       pincode: "560034",
       propertyType: "Multi-family Residential Building",
+      latitude: 12.9345,
+      longitude: 77.6221,
+      landmarks: ["Sony World Signal (500m)", "Koramangala BDA Complex (1 km)", "Forum Mall (1.8 km)", "St. John's Hospital (2.2 km)"],
+      googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Palm+Heights+Apartments+8th+Cross+4th+Block+Koramangala+Bengaluru",
+      directionsUrl: "https://www.google.com/maps/dir/?api=1&destination=8th+Cross+4th+Block+Koramangala+Bengaluru",
       totalUnits: 6,
       units: [
         { id: "unit_302", number: "Flat 302", floor: "3rd Floor", type: "2 BHK", rent: 22000, maintenance: 2500, deposit: 100000, status: "occupied", tenantId: "usr_tenant_1", tenantName: "Priya Verma" },
@@ -79,6 +84,11 @@ export const seedData = {
       state: "Karnataka",
       pincode: "560038",
       propertyType: "Independent House",
+      latitude: 12.9719,
+      longitude: 77.6412,
+      landmarks: ["Indiranagar 100ft Road (400m)", "Swami Vivekananda Road Metro Station (1.2 km)", "Toit Brewpub (800m)", "Manipal Hospital (2.5 km)"],
+      googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Shanti+Niwas+Villa+Plot+18+12th+Main+HAL+2nd+Stage+Indiranagar+Bengaluru",
+      directionsUrl: "https://www.google.com/maps/dir/?api=1&destination=Plot+18+12th+Main+HAL+2nd+Stage+Indiranagar+Bengaluru",
       totalUnits: 2,
       units: [
         { id: "unit_sn_ground", number: "Ground Floor Villa", floor: "Ground", type: "3 BHK", rent: 40000, maintenance: 3000, deposit: 200000, status: "vacant", tenantId: null, tenantName: null },

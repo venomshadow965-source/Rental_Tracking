@@ -16,8 +16,10 @@ import {
   Sparkles,
   ChevronRight,
   Eye,
-  UserCheck
+  UserCheck,
+  MapPin
 } from 'lucide-react';
+import PropertyMapViewer from '../components/PropertyMapViewer';
 
 export default function DashboardPage({
   currentUser,
@@ -37,9 +39,11 @@ export default function DashboardPage({
   onOpenReportDamage,
   onOpenAgreementViewer,
   onOpenViewInvoice,
-  onSendRentReminders
+  onSendRentReminders,
+  onOpenMap
 }) {
   const isAdmin = currentUser?.role === 'admin';
+  const tenantProperty = properties.find(p => p.id === currentUser?.propertyId) || properties[0];
 
   // Common stats
   const unpaidInvoices = invoices.filter(inv => inv.status === 'unpaid');
@@ -103,6 +107,13 @@ export default function DashboardPage({
                   <Bell className="w-4 h-4" />
                   <span>Send Rent Reminders</span>
                 </button>
+                <button
+                  onClick={() => onNavigate('properties')}
+                  className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold rounded-xl text-xs transition-all flex items-center space-x-1.5"
+                >
+                  <MapPin className="w-4 h-4" />
+                  <span>Portfolio Map</span>
+                </button>
               </>
             ) : (
               <>
@@ -113,6 +124,15 @@ export default function DashboardPage({
                   >
                     <CreditCard className="w-4 h-4" />
                     <span>Pay Rent: ₹{tenantPendingRent.totalAmount?.toLocaleString('en-IN')}</span>
+                  </button>
+                )}
+                {tenantProperty && onOpenMap && (
+                  <button
+                    onClick={() => onOpenMap(tenantProperty)}
+                    className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold rounded-xl text-xs transition-all flex items-center space-x-1.5"
+                  >
+                    <MapPin className="w-4 h-4" />
+                    <span>Residence Map</span>
                   </button>
                 )}
                 <button
@@ -360,6 +380,48 @@ export default function DashboardPage({
         {/* Left 2 Cols: Active Agreements & Damage Reports */}
         <div className="lg:col-span-2 space-y-6">
           
+          {/* Tenant Residence & Location Map Section */}
+          {!isAdmin && tenantProperty && (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <div className="p-2 bg-emerald-100 text-emerald-800 rounded-lg">
+                      <MapPin className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900">
+                        Your Residence & Neighborhood Map
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Unit {currentUser?.unitNumber || 'Assigned Flat'} • {tenantProperty.name}, {tenantProperty.address}, {tenantProperty.city}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {onOpenMap && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenMap(tenantProperty)}
+                    className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-2xs flex items-center space-x-1.5 self-start sm:self-auto"
+                  >
+                    <MapPin className="w-3.5 h-3.5" />
+                    <span>Expand Full Map</span>
+                  </button>
+                )}
+              </div>
+
+              <PropertyMapViewer
+                property={tenantProperty}
+                unit={currentUser?.unitNumber}
+                height="300px"
+                showControls={true}
+                showLandmarks={true}
+              />
+            </div>
+          )}
+
           {/* Section: Indian Rental Agreements */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">

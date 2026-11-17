@@ -14,14 +14,17 @@ import {
   Droplets,
   Fingerprint,
   Stamp,
-  Award
+  Award,
+  MapPin,
+  Navigation
 } from 'lucide-react';
 
 export default function AgreementViewer({ 
   agreement, 
   currentUser, 
   onClose, 
-  onSignAgreement 
+  onSignAgreement,
+  onOpenMap 
 }) {
   const [signing, setSigning] = useState(false);
   const [showOtpModal, setShowOtpModal] = useState(false);
@@ -237,10 +240,32 @@ export default function AgreementViewer({
 
           {/* SCHEDULE OF DEMISED PREMISES */}
           <div className="mb-6 p-4 rounded-xl border border-slate-200 bg-slate-50/50">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-1 flex items-center space-x-1.5">
-              <Building className="w-4 h-4 text-emerald-600" />
-              <span>Schedule of Demised Premises</span>
-            </h4>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center space-x-1.5">
+                <Building className="w-4 h-4 text-emerald-600" />
+                <span>Schedule of Demised Premises</span>
+              </h4>
+              {onOpenMap && (
+                <button
+                  type="button"
+                  onClick={() => onOpenMap({
+                    name: agreement.propertyName,
+                    address: agreement.propertyAddress,
+                    city: 'Bengaluru',
+                    state: 'Karnataka',
+                    latitude: agreement.latitude || 12.9345,
+                    longitude: agreement.longitude || 77.6221,
+                    landmarks: agreement.landmarks || ['Sony World Signal (350m)', 'Koramangala 80ft Road (200m)'],
+                    googleMapsUrl: agreement.googleMapsUrl,
+                    directionsUrl: agreement.directionsUrl
+                  })}
+                  className="no-print inline-flex items-center space-x-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1 rounded-lg border border-emerald-200 transition-colors cursor-pointer self-start sm:self-auto"
+                >
+                  <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>📍 View Property Location on Map</span>
+                </button>
+              )}
+            </div>
             <p className="text-xs text-slate-800 leading-relaxed">
               All that piece and parcel of residential premises bearing <strong>{agreement.propertyAddress}</strong>, along with electrical fittings, ceiling fans, sanitaryware, and fixtures in sound working condition.
             </p>

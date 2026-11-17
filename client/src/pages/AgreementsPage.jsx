@@ -13,15 +13,18 @@ import {
   CreditCard,
   Fingerprint,
   UserCheck,
-  ArrowRight
+  ArrowRight,
+  MapPin
 } from 'lucide-react';
 
 export default function AgreementsPage({
   agreements,
   currentUser,
   users = [],
+  properties = [],
   onOpenCreateAgreement,
-  onOpenAgreementViewer
+  onOpenAgreementViewer,
+  onOpenMap
 }) {
   const isAdmin = currentUser?.role === 'admin';
   const [filter, setFilter] = useState('all'); // all, executed, sent_to_tenant
@@ -281,6 +284,30 @@ export default function AgreementsPage({
                 </span>
 
                 <div className="flex items-center space-x-2">
+                  {onOpenMap && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const prop = properties?.find(p => p.id === agreement.propertyId || p.name === agreement.propertyName) || {
+                          name: agreement.propertyName,
+                          address: agreement.propertyAddress,
+                          city: 'Bengaluru',
+                          state: 'Karnataka',
+                          latitude: agreement.latitude || 12.9345,
+                          longitude: agreement.longitude || 77.6221,
+                          landmarks: agreement.landmarks || ['Sony World Signal (350m)', 'Koramangala 80ft Road (200m)'],
+                          googleMapsUrl: agreement.googleMapsUrl,
+                          directionsUrl: agreement.directionsUrl
+                        };
+                        onOpenMap(prop);
+                      }}
+                      className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-bold flex items-center space-x-1 transition-colors"
+                      title="View leased property location on interactive map"
+                    >
+                      <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Map</span>
+                    </button>
+                  )}
                   {isPendingTenant && (
                     <button
                       onClick={() => onOpenAgreementViewer(agreement)}

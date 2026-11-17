@@ -83,6 +83,16 @@
       "state": "Karnataka",
       "pincode": "560034",
       "propertyType": "Multi-family Residential Building",
+      "latitude": 12.9345,
+      "longitude": 77.6221,
+      "landmarks": [
+        "Sony World Signal (500m)",
+        "Koramangala BDA Complex (1 km)",
+        "Forum Mall (1.8 km)",
+        "St. John's Hospital (2.2 km)"
+      ],
+      "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=Palm+Heights+Apartments+8th+Cross+4th+Block+Koramangala+Bengaluru",
+      "directionsUrl": "https://www.google.com/maps/dir/?api=1&destination=8th+Cross+4th+Block+Koramangala+Bengaluru",
       "totalUnits": 6,
       "units": [
         {
@@ -143,6 +153,16 @@
       "state": "Karnataka",
       "pincode": "560038",
       "propertyType": "Independent House",
+      "latitude": 12.9719,
+      "longitude": 77.6412,
+      "landmarks": [
+        "Indiranagar 100ft Road (400m)",
+        "Swami Vivekananda Road Metro Station (1.2 km)",
+        "Toit Brewpub (800m)",
+        "Manipal Hospital (2.5 km)"
+      ],
+      "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=Shanti+Niwas+Villa+Plot+18+12th+Main+HAL+2nd+Stage+Indiranagar+Bengaluru",
+      "directionsUrl": "https://www.google.com/maps/dir/?api=1&destination=Plot+18+12th+Main+HAL+2nd+Stage+Indiranagar+Bengaluru",
       "totalUnits": 2,
       "units": [
         {
@@ -168,6 +188,30 @@
           "status": "occupied",
           "tenantId": "usr_tenant_1794819900742",
           "tenantName": "Achyuta Bidarahalli"
+        }
+      ]
+    },
+    {
+      "id": "prop_1794821557439",
+      "name": "44",
+      "propertyType": "Independent House / Villa",
+      "address": "Virupakshapura",
+      "city": "Bengaluru",
+      "state": "Karnataka",
+      "pincode": "560097",
+      "totalUnits": 1,
+      "units": [
+        {
+          "id": "unit_1794821557439_1",
+          "number": "Flat 101",
+          "floor": "1st Floor",
+          "type": "2 BHK",
+          "rent": 22000,
+          "maintenance": 2500,
+          "deposit": 110000,
+          "status": "vacant",
+          "tenantId": null,
+          "tenantName": null
         }
       ]
     }
@@ -986,6 +1030,18 @@
     }
   ],
   "notifications": [
+    {
+      "id": "notif_1794821557439",
+      "userId": "usr_admin",
+      "title": "Property Listed: 44",
+      "message": "\"44\" with 1 unit(s) has been successfully listed in Bengaluru. Units are now open for tenant registration and agreements.",
+      "type": "property_listed",
+      "severity": "success",
+      "read": false,
+      "createdAt": "2026-11-16T09:32:37.439Z",
+      "actionUrl": "/properties",
+      "actionText": "View Properties"
+    },
     {
       "id": "notif_1794820842391",
       "userId": "usr_admin",

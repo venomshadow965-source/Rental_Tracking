@@ -261,6 +261,9 @@ app.post('/api/properties', (req, res) => {
     city = 'Bengaluru',
     state = 'Karnataka',
     pincode = '560034',
+    latitude,
+    longitude,
+    landmarks = [],
     units = []
   } = req.body;
 
@@ -269,6 +272,13 @@ app.post('/api/properties', (req, res) => {
   }
 
   const propertyId = `prop_${Date.now()}`;
+
+  // Geolocation & Map Link Calculations
+  const lat = latitude ? Number(latitude) : (12.9200 + Math.random() * 0.05);
+  const lng = longitude ? Number(longitude) : (77.6100 + Math.random() * 0.05);
+  const fullAddressQuery = `${name.trim()}, ${address.trim()}, ${city.trim()}, ${state.trim()} ${pincode.trim()}`;
+  const gMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddressQuery)}`;
+  const dirUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${address.trim()}, ${city.trim()}, ${state.trim()}`)}`;
 
   // Process units
   const processedUnits = (units.length > 0 ? units : [
@@ -301,6 +311,15 @@ app.post('/api/properties', (req, res) => {
     city: city.trim(),
     state: state.trim(),
     pincode: pincode.trim(),
+    latitude: Number(lat.toFixed(4)),
+    longitude: Number(lng.toFixed(4)),
+    landmarks: Array.isArray(landmarks) && landmarks.length > 0 ? landmarks : [
+      `Near ${city} Outer Ring Road / Transit Hub`,
+      "Metro Station & Bus Stop Accessible (<1 km)",
+      "Daily Needs Supermarket & Hospital Nearby"
+    ],
+    googleMapsUrl: gMapsUrl,
+    directionsUrl: dirUrl,
     totalUnits: processedUnits.length,
     units: processedUnits
   };
@@ -386,7 +405,12 @@ app.get('/api/units', (req, res) => {
         ...u,
         propertyId: p.id,
         propertyName: p.name,
-        propertyAddress: `${p.address}, ${p.city}, ${p.state} - ${p.pincode}`
+        propertyAddress: `${p.address}, ${p.city}, ${p.state} - ${p.pincode}`,
+        latitude: p.latitude,
+        longitude: p.longitude,
+        landmarks: p.landmarks,
+        googleMapsUrl: p.googleMapsUrl,
+        directionsUrl: p.directionsUrl
       });
     });
   });
