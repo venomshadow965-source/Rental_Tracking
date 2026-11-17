@@ -95,6 +95,15 @@ export const api = {
     return res.json();
   },
 
+  async updatePropertyLocation(propertyId, locationData) {
+    const res = await fetch(`${API_BASE}/properties/${propertyId}/location`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(locationData)
+    });
+    return res.json();
+  },
+
   // Rental Agreements
   async getAgreements() {
     const res = await fetch(`${API_BASE}/agreements`, { headers: getHeaders() });

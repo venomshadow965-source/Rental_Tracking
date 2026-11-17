@@ -20,7 +20,8 @@ import {
   Map as MapIcon,
   Zap,
   Droplets,
-  Gauge
+  Gauge,
+  Crosshair
 } from 'lucide-react';
 import PropertyMapViewer from '../components/PropertyMapViewer';
 
@@ -32,7 +33,8 @@ export default function PropertiesPage({
   onOpenAddUnit,
   onOpenCreateAgreement,
   onOpenMap,
-  onOpenRegisterMeter
+  onOpenRegisterMeter,
+  onOpenEditLocation
 }) {
   const isAdmin = currentUser?.role === 'admin';
   // Filter strictly to current landlord's properties (exclude other landlords)
@@ -291,16 +293,29 @@ export default function PropertiesPage({
                       </div>
                       <p className="text-xs text-slate-500">{currentProp.address}, {currentProp.city}, {currentProp.state} - {currentProp.pincode}</p>
                     </div>
-                    {onOpenMap && (
-                      <button
-                        type="button"
-                        onClick={() => onOpenMap(currentProp)}
-                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs transition-colors flex items-center space-x-1"
-                      >
-                        <MapPin className="w-3.5 h-3.5" />
-                        <span>Open Modal</span>
-                      </button>
-                    )}
+                    <div className="flex items-center space-x-2">
+                      {isAdmin && onOpenEditLocation && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenEditLocation(currentProp)}
+                          className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 shadow-2xs"
+                          title="Change address and drag marker to exact spot"
+                        >
+                          <Crosshair className="w-3.5 h-3.5" />
+                          <span>Move Marker Pin</span>
+                        </button>
+                      )}
+                      {onOpenMap && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenMap(currentProp)}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs transition-colors flex items-center space-x-1"
+                        >
+                          <MapPin className="w-3.5 h-3.5" />
+                          <span>Open Modal</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <PropertyMapViewer
@@ -447,6 +462,18 @@ export default function PropertiesPage({
                     <span>{isMapExpanded ? 'Hide Map' : 'Map Preview'}</span>
                     {isMapExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                   </button>
+
+                  {isAdmin && onOpenEditLocation && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenEditLocation(property)}
+                      className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-lg text-xs border border-rose-200 transition-colors flex items-center space-x-1"
+                      title="Change address and drag marker to exact spot"
+                    >
+                      <Crosshair className="w-3.5 h-3.5 text-rose-600" />
+                      <span>Change Location / Move Pin</span>
+                    </button>
+                  )}
 
                   {onOpenMap && (
                     <button

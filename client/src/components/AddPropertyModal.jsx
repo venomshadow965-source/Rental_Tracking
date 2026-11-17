@@ -18,6 +18,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import PropertyMapViewer from './PropertyMapViewer';
+import InteractiveMapPicker from './InteractiveMapPicker';
 import { geocodeAddress, getBrowserGeolocation } from '../services/geocoding';
 
 export default function AddPropertyModal({ onClose, onSubmit }) {
@@ -32,6 +33,7 @@ export default function AddPropertyModal({ onClose, onSubmit }) {
   const [landmarksText, setLandmarksText] = useState('Near Metro Station, Grocery Market (500m)');
   const [geocodeMsg, setGeocodeMsg] = useState('');
   const [gpsLoading, setGpsLoading] = useState(false);
+  const [mapMode, setMapMode] = useState('draggable'); // 'draggable' or 'preview'
 
   // Units array
   const [units, setUnits] = useState([
@@ -494,22 +496,66 @@ export default function AddPropertyModal({ onClose, onSubmit }) {
               </div>
             </div>
 
-            {/* Live Interactive Map Preview Centered on Exact Coordinates */}
-            <PropertyMapViewer
-              property={{
-                name: name || 'Property Location Preview',
-                address: address || 'Property Address',
-                city,
-                state,
-                pincode,
-                latitude: Number(latitude),
-                longitude: Number(longitude),
-                landmarks: landmarksText ? landmarksText.split(',').map(s => s.trim()).filter(Boolean) : []
-              }}
-              height="260px"
-              showControls={true}
-              showLandmarks={false}
-            />
+            {/* View Mode Toggle: Interactive Draggable Pin vs Google Maps Live View */}
+            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+              <div className="flex items-center space-x-1.5">
+                <button
+                  type="button"
+                  onClick={() => setMapMode('draggable')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                    mapMode === 'draggable' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  📍 Drag & Move Pin on Map
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMapMode('preview')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                    mapMode === 'preview' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  🗺️ Google Maps Embed Preview
+                </button>
+              </div>
+              <span className="text-[10px] text-slate-500 hidden sm:inline">
+                {mapMode === 'draggable' ? 'Click anywhere on map or drag pin' : 'Exact pin coordinates verified'}
+              </span>
+            </div>
+
+            {/* Draggable Marker Interactive Map */}
+            {mapMode === 'draggable' && (
+              <InteractiveMapPicker
+                latitude={latitude}
+                longitude={longitude}
+                onLocationChange={({ lat, lng }) => {
+                  setLatitude(lat);
+                  setLongitude(lng);
+                }}
+                propertyName={name || 'New Property'}
+                height="300px"
+                showNudgeControls={true}
+              />
+            )}
+
+            {/* Live Google Maps Preview */}
+            {mapMode === 'preview' && (
+              <PropertyMapViewer
+                property={{
+                  name: name || 'Property Location Preview',
+                  address: address || 'Property Address',
+                  city,
+                  state,
+                  pincode,
+                  latitude: Number(latitude),
+                  longitude: Number(longitude),
+                  landmarks: landmarksText ? landmarksText.split(',').map(s => s.trim()).filter(Boolean) : []
+                }}
+                height="280px"
+                showControls={true}
+                showLandmarks={false}
+              />
+            )}
           </div>
 
           {/* SECTION 3: Units Inventory Builder */}

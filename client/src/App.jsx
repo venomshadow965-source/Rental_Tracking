@@ -26,6 +26,7 @@ import AddReadingModal from './components/AddReadingModal';
 import PayUtilityModal from './components/PayUtilityModal';
 import GovReceiptModal from './components/GovReceiptModal';
 import PropertyMapModal from './components/PropertyMapModal';
+import EditLocationModal from './components/EditLocationModal';
 
 import { api, getSavedUserId, setSavedUserId, setSavedToken } from './services/api';
 
@@ -63,6 +64,7 @@ export default function App() {
   const [payingBill, setPayingBill] = useState(null);
   const [viewingGovReceipt, setViewingGovReceipt] = useState(null);
   const [viewingMapProperty, setViewingMapProperty] = useState(null);
+  const [editingLocationProperty, setEditingLocationProperty] = useState(null);
 
   // Initial Load
   useEffect(() => {
@@ -176,6 +178,20 @@ export default function App() {
       setProperties(prev => prev.map(p => p.id === propertyId ? res.property : p));
       const unitsRes = await api.getUnits();
       if (unitsRes.success) setUnits(unitsRes.units);
+    }
+    return res;
+  };
+
+  // Action: Update Property Location & Marker Pin (Admin only)
+  const handleUpdatePropertyLocation = async (propertyId, locationData) => {
+    const res = await api.updatePropertyLocation(propertyId, locationData);
+    if (res.success) {
+      setProperties(prev => prev.map(p => p.id === propertyId ? res.property : p));
+      if (viewingMapProperty?.id === propertyId) {
+        setViewingMapProperty(res.property);
+      }
+      const notifsRes = await api.getNotifications();
+      if (notifsRes.success) setNotifications(notifsRes.notifications);
     }
     return res;
   };
@@ -490,6 +506,7 @@ export default function App() {
               setShowCreateAgreement(true);
             }}
             onOpenMap={(prop) => setViewingMapProperty(prop)}
+            onOpenEditLocation={(prop) => setEditingLocationProperty(prop)}
           />
         )}
 
@@ -699,6 +716,18 @@ export default function App() {
           property={viewingMapProperty}
           currentUser={currentUser}
           onClose={() => setViewingMapProperty(null)}
+          onOpenEditLocation={(prop) => {
+            setViewingMapProperty(null);
+            setEditingLocationProperty(prop);
+          }}
+        />
+      )}
+
+      {editingLocationProperty && (
+        <EditLocationModal
+          property={editingLocationProperty}
+          onClose={() => setEditingLocationProperty(null)}
+          onSave={handleUpdatePropertyLocation}
         />
       )}
 

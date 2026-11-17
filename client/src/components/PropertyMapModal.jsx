@@ -4,14 +4,17 @@ import {
   MapPin, 
   Building2, 
   Navigation, 
-  ExternalLink,
-  ShieldCheck,
-  CheckCircle2
+  ExternalLink, 
+  ShieldCheck, 
+  CheckCircle2,
+  Crosshair
 } from 'lucide-react';
 import PropertyMapViewer from './PropertyMapViewer';
 
-export default function PropertyMapModal({ property, unit = null, currentUser = null, onClose }) {
+export default function PropertyMapModal({ property, unit = null, currentUser = null, onClose, onOpenEditLocation }) {
   if (!property) return null;
+
+  const isAdmin = currentUser?.role === 'admin';
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex justify-center p-2 sm:p-4 md:p-6 animate-in fade-in duration-200">
@@ -31,7 +34,7 @@ export default function PropertyMapModal({ property, unit = null, currentUser = 
                 <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
                   Verified Geocode Pin
                 </span>
-                {currentUser?.role === 'admin' && (
+                {isAdmin && (
                   <span className="text-[10px] bg-amber-50 text-amber-800 border border-amber-200 font-bold px-2 py-0.5 rounded-full">
                     👑 Owned by {currentUser?.name || 'You'}
                   </span>
@@ -44,6 +47,17 @@ export default function PropertyMapModal({ property, unit = null, currentUser = 
           </div>
 
           <div className="flex items-center space-x-2">
+            {isAdmin && onOpenEditLocation && (
+              <button
+                type="button"
+                onClick={() => onOpenEditLocation(property)}
+                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center space-x-1.5"
+                title="Change location and drag marker to exact spot"
+              >
+                <Crosshair className="w-3.5 h-3.5" />
+                <span>Move Marker Pin</span>
+              </button>
+            )}
             <button
               onClick={onClose}
               className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
@@ -66,19 +80,31 @@ export default function PropertyMapModal({ property, unit = null, currentUser = 
         </div>
 
         {/* Modal Bottom Bar */}
-        <div className="px-6 py-3.5 border-t border-slate-200 bg-slate-50 rounded-b-2xl flex items-center justify-between">
+        <div className="px-6 py-3.5 border-t border-slate-200 bg-slate-50 rounded-b-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center space-x-1.5 text-xs text-slate-500">
             <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
             <span>Interactive satellite and street navigation available for both landlord and tenant.</span>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors"
-          >
-            Close
-          </button>
+          <div className="flex items-center space-x-2 self-end sm:self-auto">
+            {isAdmin && onOpenEditLocation && (
+              <button
+                type="button"
+                onClick={() => onOpenEditLocation(property)}
+                className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-colors flex items-center space-x-1.5"
+              >
+                <Crosshair className="w-3.5 h-3.5" />
+                <span>Change Location / Move Pin</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors"
+            >
+              Close
+            </button>
+          </div>
         </div>
 
       </div>

@@ -409,6 +409,87 @@ app.post('/api/properties', (req, res) => {
   });
 });
 
+// Update Property Location and Exact Map Marker Pin
+app.put('/api/properties/:id/location', (req, res) => {
+  const db = readDb();
+  const userId = getActiveUserId(req);
+  const currentUser = db.users.find(u => u.id === userId);
+
+  if (!currentUser || currentUser.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'Access Denied: Only Landlord can update property locations.' });
+  }
+
+  const property = db.properties.find(p => p.id === req.params.id);
+  if (!property) {
+    return res.status(404).json({ success: false, message: 'Property not found.' });
+  }
+
+  // Ensure this property belongs to the requesting landlord
+  const isOwner = property.landlordId === currentUser.id || (!property.landlordId && currentUser.id === 'usr_admin');
+  if (!isOwner) {
+    return res.status(403).json({ success: false, message: 'Access Denied: You can only edit locations for your own properties.' });
+  }
+
+  const {
+    latitude,
+    longitude,
+    address,
+    city,
+    state,
+    pincode,
+    landmarks
+  } = req.body;
+
+  if (latitude === undefined || longitude === undefined || isNaN(Number(latitude)) || isNaN(Number(longitude))) {
+    return res.status(400).json({ success: false, message: 'Valid Latitude and Longitude are required.' });
+  }
+
+  const latNum = Number(Number(latitude).toFixed(6));
+  const lngNum = Number(Number(longitude).toFixed(6));
+
+  property.latitude = latNum;
+  property.longitude = lngNum;
+
+  if (address && typeof address === 'string') property.address = address.trim();
+  if (city && typeof city === 'string') property.city = city.trim();
+  if (state && typeof state === 'string') property.state = state.trim();
+  if (pincode && typeof pincode === 'string') property.pincode = pincode.trim();
+  if (Array.isArray(landmarks)) property.landmarks = landmarks;
+
+  // Recalculate Google Maps and Navigation Links with exact pin coordinates
+  property.googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${latNum},${lngNum}`;
+  property.directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${latNum},${lngNum}`;
+
+  // Update property address in any associated tenant user profiles
+  db.users.forEach(u => {
+    if (u.propertyId === property.id) {
+      u.propertyAddress = `${property.address}, ${property.city}, ${property.state} - ${property.pincode}`;
+    }
+  });
+
+  // Notify Landlord
+  db.notifications.unshift({
+    id: `notif_${Date.now()}`,
+    userId: currentUser.id,
+    title: `Location Updated: ${property.name}`,
+    message: `Marker for "${property.name}" set to exact coordinates ${latNum.toFixed(4)}° N, ${lngNum.toFixed(4)}° E.`,
+    type: 'property_updated',
+    severity: 'success',
+    read: false,
+    createdAt: new Date().toISOString(),
+    actionUrl: '/properties',
+    actionText: 'View Property'
+  });
+
+  writeDb(db);
+
+  res.json({
+    success: true,
+    property,
+    message: `Location and exact map marker pin updated successfully to ${latNum}° N, ${lngNum}° E!`
+  });
+});
+
 // Add unit to existing property
 app.post('/api/properties/:id/units', (req, res) => {
   const db = readDb();
