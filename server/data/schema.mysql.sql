@@ -243,6 +243,28 @@ CREATE TABLE IF NOT EXISTS notifications (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- 10. BANK ACCOUNTS TABLE (Verified Landlords & Tenants)
+CREATE TABLE IF NOT EXISTS bank_accounts (
+  id VARCHAR(64) PRIMARY KEY,
+  user_id VARCHAR(64) NOT NULL,
+  bank_name VARCHAR(128) NOT NULL,
+  account_holder VARCHAR(128) NOT NULL,
+  verified_beneficiary_name VARCHAR(128) NULL,
+  account_number VARCHAR(64) NOT NULL,
+  masked_account_number VARCHAR(32) NOT NULL,
+  ifsc VARCHAR(16) NOT NULL,
+  branch VARCHAR(128) NULL,
+  micr VARCHAR(16) NULL,
+  account_type VARCHAR(64) DEFAULT 'Savings Account',
+  is_default BOOLEAN DEFAULT FALSE,
+  is_verified BOOLEAN DEFAULT TRUE,
+  penny_drop_status VARCHAR(32) DEFAULT 'ACTIVE',
+  penny_drop_utr VARCHAR(64) NULL,
+  rbi_recognized BOOLEAN DEFAULT TRUE,
+  linked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 -- INDEXES FOR HIGH QUERY CONCURRENCY
 CREATE INDEX idx_properties_landlord ON properties(landlord_id);
 CREATE INDEX idx_units_property ON units(property_id);
@@ -252,3 +274,4 @@ CREATE INDEX idx_agreements_tenant ON agreements(tenant_id);
 CREATE INDEX idx_invoices_tenant ON rent_invoices(tenant_id, status);
 CREATE INDEX idx_invoices_landlord ON rent_invoices(landlord_id);
 CREATE INDEX idx_notifications_user ON notifications(user_id, is_read);
+CREATE INDEX idx_bank_accounts_user ON bank_accounts(user_id);

@@ -259,6 +259,29 @@ async function migrate() {
     }
     console.log('✅ Notifications migrated.');
 
+    // 9. Migrate Bank Accounts (Landlord & Tenants)
+    const allBankAccounts = [];
+    for (const u of (dbData.users || [])) {
+      for (const b of (u.bankAccounts || [])) {
+        allBankAccounts.push({ ...b, userId: u.id });
+      }
+    }
+    console.log(`\n⏳ Migrating ${allBankAccounts.length} Verified Bank Accounts...`);
+    for (const b of allBankAccounts) {
+      await connection.execute(
+        `INSERT INTO bank_accounts (id, user_id, bank_name, account_holder, verified_beneficiary_name, account_number, masked_account_number, ifsc, branch, micr, account_type, is_default, is_verified, penny_drop_status, penny_drop_utr, rbi_recognized)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE is_verified=VALUES(is_verified), penny_drop_status=VALUES(penny_drop_status)`,
+        [
+          b.id, b.userId, b.bankName, b.accountHolder, b.verifiedBeneficiaryName || b.accountHolder,
+          b.accountNumber, b.maskedAccountNumber, b.ifsc, b.branch || null, b.micr || null,
+          b.accountType || 'Savings Account', b.isDefault ? 1 : 0, b.isVerified ? 1 : 0,
+          b.pennyDropStatus || 'ACTIVE', b.pennyDropUtr || null, b.rbiRecognized ? 1 : 0
+        ]
+      );
+    }
+    console.log('✅ Verified Bank Accounts migrated.');
+
     console.log('\n🎉 ALL DATA MIGRATED TO MYSQL SUCCESSFULLY!');
   } catch (err) {
     console.error('❌ Migration Error:', err);
