@@ -15,6 +15,14 @@ import {
   processBBPSGovernmentSettlement
 } from './services/governmentUtilityService.js';
 import { resolveServerCoordinates } from './services/geocodingService.js';
+import {
+  validateIfsc,
+  validateAccountNumber,
+  verifyBankAccountPennyDrop,
+  verifyUpiVpa,
+  verifyUpiQrPayload,
+  getVerifiedLandlordBankingProfile
+} from './services/bankVerificationService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -989,19 +997,40 @@ app.post('/api/user/bank-accounts', (req, res) => {
   }
 
   const cleanAcc = accountNumber.replace(/\s+/g, '');
-  const last4 = cleanAcc.slice(-4) || '1234';
+  const cleanIfsc = ifsc.trim().toUpperCase();
+
+  // Run Real-Time Penny Drop Verification (₹1.00 IMPS test to CBS)
+  const pennyResult = verifyBankAccountPennyDrop({
+    accountNumber: cleanAcc,
+    ifsc: cleanIfsc,
+    accountHolder: accountHolder || user.name,
+    bankName
+  });
+
+  if (!pennyResult.isVerified) {
+    return res.status(400).json({
+      success: false,
+      message: pennyResult.message || 'Bank verification failed. Please check IFSC and Account Number.'
+    });
+  }
 
   const newAccount = {
     id: `bank_${Date.now()}`,
-    bankName: bankName.trim(),
+    bankName: pennyResult.bankName || bankName.trim(),
     accountHolder: (accountHolder || user.name).trim(),
+    verifiedBeneficiaryName: pennyResult.beneficiaryName,
+    nameMatchScore: pennyResult.nameMatchScore,
     accountNumber: cleanAcc,
-    maskedAccountNumber: `•••• •••• ${last4}`,
-    ifsc: ifsc.trim().toUpperCase(),
-    branch: branch.trim(),
+    maskedAccountNumber: pennyResult.maskedAccountNumber,
+    ifsc: pennyResult.ifsc,
+    branch: pennyResult.branch || branch.trim(),
+    micr: pennyResult.micr,
     accountType,
     isDefault: !user.bankAccounts || user.bankAccounts.length === 0,
     isVerified: true,
+    pennyDropStatus: pennyResult.accountStatus,
+    pennyDropUtr: pennyResult.pennyUtr,
+    rbiRecognized: true,
     linkedAt: new Date().toISOString()
   };
 
@@ -1012,8 +1041,83 @@ app.post('/api/user/bank-accounts', (req, res) => {
   res.status(201).json({
     success: true,
     bankAccount: newAccount,
-    message: `${bankName} account ending in ${last4} linked and verified successfully for real-time direct debit!`
+    verification: pennyResult,
+    message: `${pennyResult.bankName} account ending in ${cleanAcc.slice(-4)} verified via ₹1.00 Penny Drop (Registered Name: ${pennyResult.beneficiaryName}) and linked successfully!`
   });
+});
+
+// Bank IFSC Lookup and RBI Branch Verification
+app.get('/api/verify/ifsc/:ifsc', (req, res) => {
+  const result = validateIfsc(req.params.ifsc);
+  if (!result.isValid) {
+    return res.status(400).json({ success: false, ...result });
+  }
+  res.json({ success: true, ifscDetails: result });
+});
+
+// Real-Time Bank Account Verification (₹1.00 IMPS Penny Drop)
+app.post('/api/verify/bank-account', (req, res) => {
+  const { accountNumber, ifsc, accountHolder, bankName, isLandlord = false } = req.body;
+  
+  if (!accountNumber || !ifsc) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Account Number and IFSC Code are required for bank verification.' 
+    });
+  }
+
+  const result = verifyBankAccountPennyDrop({
+    accountNumber,
+    ifsc,
+    accountHolder,
+    bankName,
+    isLandlord
+  });
+
+  if (!result.isVerified) {
+    return res.status(400).json({
+      success: false,
+      message: result.message || 'Bank account verification failed.'
+    });
+  }
+
+  res.json({
+    success: true,
+    verification: result,
+    message: `Account ending in ${result.maskedAccountNumber.slice(-4)} successfully verified via ₹1.00 Penny Drop (Status: ${result.accountStatus}).`
+  });
+});
+
+// Real-Time UPI QR Code & VPA Verification (NPCI Bharat QR 2.0 / UPI Switch)
+app.post('/api/verify/upi-qr', (req, res) => {
+  const { qrPayload, vpa } = req.body;
+
+  if (qrPayload) {
+    const result = verifyUpiQrPayload(qrPayload);
+    if (!result.isValid) {
+      return res.status(400).json({ success: false, message: result.reason });
+    }
+    return res.json({ success: true, verification: result });
+  }
+
+  if (vpa) {
+    const result = verifyUpiVpa(vpa);
+    if (!result.isValid) {
+      return res.status(400).json({ success: false, message: result.reason });
+    }
+    return res.json({ success: true, verification: result });
+  }
+
+  return res.status(400).json({
+    success: false,
+    message: 'Either qrPayload or vpa is required for verification.'
+  });
+});
+
+// Landlord Verified Banking & UPI Profile
+app.get('/api/landlord/bank-verification', (req, res) => {
+  const landlordProfile = getVerifiedLandlordBankingProfile();
+  res.json({ success: true, landlord: landlordProfile });
 });
 
 // Tenant pays rent in real-time
@@ -1808,20 +1912,25 @@ if (fs.existsSync(clientDist)) {
   });
 }
 
-const server = app.listen(PORT, () => {
-  console.log(`\n======================================================`);
-  console.log(`  KirayaSetu Backend Server running on port ${PORT}`);
-  console.log(`  Open in browser: http://localhost:${PORT}`);
-  console.log(`======================================================\n`);
-});
+export { app };
 
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`\n[PORT CONFLICT] Port ${PORT} is already in use by another running instance.`);
-    console.error(`To clear port ${PORT} in PowerShell, run:`);
-    console.error(`Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force\n`);
-  } else {
-    console.error('Server error:', err);
-  }
-  process.exit(1);
-});
+let server;
+if (process.env.TEST_MODE !== 'true') {
+  server = app.listen(PORT, () => {
+    console.log(`\n======================================================`);
+    console.log(`  KirayaSetu Backend Server running on port ${PORT}`);
+    console.log(`  Open in browser: http://localhost:${PORT}`);
+    console.log(`======================================================\n`);
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`\n[PORT CONFLICT] Port ${PORT} is already in use by another running instance.`);
+      console.error(`To clear port ${PORT} in PowerShell, run:`);
+      console.error(`Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force\n`);
+    } else {
+      console.error('Server error:', err);
+    }
+    process.exit(1);
+  });
+}

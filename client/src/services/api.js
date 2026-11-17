@@ -177,6 +177,35 @@ export const api = {
     return res.json();
   },
 
+  // Real-Time Bank & UPI Verification APIs
+  async verifyIfsc(ifsc) {
+    const res = await fetch(`${API_BASE}/verify/ifsc/${encodeURIComponent(ifsc)}`, { headers: getHeaders() });
+    return res.json();
+  },
+
+  async verifyBankAccount(data) {
+    const res = await fetch(`${API_BASE}/verify/bank-account`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async verifyUpiQr(data) {
+    const res = await fetch(`${API_BASE}/verify/upi-qr`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async getLandlordBankVerification() {
+    const res = await fetch(`${API_BASE}/landlord/bank-verification`, { headers: getHeaders() });
+    return res.json();
+  },
+
   async payRent(invoiceId, paymentMethod, transactionRef, bankDetails = null) {
     const res = await fetch(`${API_BASE}/rent/pay`, {
       method: 'POST',
