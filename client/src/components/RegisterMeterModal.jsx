@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Zap, 
@@ -7,16 +7,29 @@ import {
   Building, 
   FileText, 
   Hash, 
-  Gauge
+  Gauge,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+  Search,
+  Activity,
+  Flame,
+  Radio
 } from 'lucide-react';
+import { api } from '../services/api';
 
 export default function RegisterMeterModal({ 
   onClose, 
   onSubmit, 
   currentUser,
-  units,
-  users 
+  units = [],
+  users = [],
+  properties = [],
+  initialPropertyId = null
 }) {
+  const [selectedPropertyId, setSelectedPropertyId] = useState(
+    initialPropertyId || properties[0]?.id || ''
+  );
   const [meterType, setMeterType] = useState('electricity');
   const [utilityProvider, setUtilityProvider] = useState('BESCOM (Bangalore Electricity Supply Company)');
   const [consumerId, setConsumerId] = useState('');
@@ -25,19 +38,25 @@ export default function RegisterMeterModal({
   const [phaseType, setPhaseType] = useState('Single Phase Domestic (LT-2)');
   const [initialReading, setInitialReading] = useState('');
   const [governmentDocumentRef, setGovernmentDocumentRef] = useState('');
-  const [selectedUnitId, setSelectedUnitId] = useState(currentUser?.assignedUnitId || units[0]?.id || '');
+  const [selectedUnitId, setSelectedUnitId] = useState('common_area');
   const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [verificationData, setVerificationData] = useState(null);
   const [error, setError] = useState('');
 
-  // Indian Electricity & Water Boards
+  // Selected property object
+  const currentProperty = properties.find(p => p.id === selectedPropertyId) || properties[0];
+  const propertyUnits = currentProperty?.units || units.filter(u => u.propertyId === selectedPropertyId) || [];
+
+  // Indian Electricity, Water & Gas Boards
   const electricityProviders = [
     'BESCOM (Bangalore Electricity Supply Company)',
     'BSES Rajdhani Power Limited (Delhi)',
     'BSES Yamuna Power Limited (Delhi)',
     'Tata Power (Delhi / Mumbai)',
     'MSEDCL (Mahavitaran Maharashtra)',
-    'TNEB (Tamil Nadu Generation and Distribution)',
     'TSSPDCL (Southern Power Distribution Telangana)',
+    'TNEB (Tamil Nadu Generation and Distribution)',
     'UPPCL (Uttar Pradesh Power Corporation)',
     'CESC (Kolkata)'
   ];
@@ -51,23 +70,74 @@ export default function RegisterMeterModal({
     'Municipal Corporation Water Works'
   ];
 
+  const gasProviders = [
+    'IGL (Indraprastha Gas Limited)',
+    'GAIL Gas Limited',
+    'Mahanagar Gas (MGL Mumbai)',
+    'Adani Total Gas Limited'
+  ];
+
   const handleTypeChange = (type) => {
     setMeterType(type);
+    setVerificationData(null);
     if (type === 'electricity') {
       setUtilityProvider(electricityProviders[0]);
       setSanctionedLoad('3 kW');
       setPhaseType('Single Phase Domestic (LT-2)');
-    } else {
+    } else if (type === 'water') {
       setUtilityProvider(waterProviders[0]);
       setSanctionedLoad('Domestic 1/2 Inch');
       setPhaseType('Domestic Residential');
+    } else {
+      setUtilityProvider(gasProviders[0]);
+      setSanctionedLoad('Domestic 0.6 m3/hr');
+      setPhaseType('PNG Domestic Pipeline');
+    }
+  };
+
+  // Live DISCOM Server Verification
+  const handleVerifyWithServer = async () => {
+    if (!consumerId.trim()) {
+      setError('Please enter a Consumer ID / RR Number to verify with the government server.');
+      return;
+    }
+
+    setVerifying(true);
+    setError('');
+
+    try {
+      const res = await api.verifyGovMeter({
+        providerName: utilityProvider,
+        consumerId: consumerId.trim(),
+        meterType,
+        meterNumber: meterNumber.trim() || undefined
+      });
+
+      if (res.success) {
+        setVerificationData(res);
+        if (!initialReading || Number(initialReading) === 0) {
+          setInitialReading(res.currentReading);
+        }
+        if (!meterNumber && res.meterSerialNumber) {
+          setMeterNumber(res.meterSerialNumber);
+        }
+        if (res.sanctionedLoad) {
+          setSanctionedLoad(res.sanctionedLoad);
+        }
+      } else {
+        setError(res.message || 'DISCOM server verification failed. Please check the Consumer ID.');
+      }
+    } catch (err) {
+      setError(err.message || 'Error communicating with DISCOM live gateway.');
+    } finally {
+      setVerifying(false);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!consumerId || !meterNumber || initialReading === '') {
-      setError('Please provide Consumer ID, Meter Number, and Initial Meter Reading.');
+    if (!consumerId || !meterNumber) {
+      setError('Please provide Consumer ID and Meter Serial Number.');
       return;
     }
 
@@ -75,16 +145,30 @@ export default function RegisterMeterModal({
     setError('');
 
     try {
+      // Find assigned tenant if a unit is selected
+      let assignedTenantId = null;
+      if (selectedUnitId && selectedUnitId !== 'common_area') {
+        const u = propertyUnits.find(unit => unit.id === selectedUnitId);
+        if (u?.tenantId) {
+          assignedTenantId = u.tenantId;
+        } else {
+          const userTenant = users.find(usr => usr.assignedUnitId === selectedUnitId);
+          if (userTenant) assignedTenantId = userTenant.id;
+        }
+      }
+
       const payload = {
+        propertyId: selectedPropertyId,
+        unitId: selectedUnitId,
+        tenantId: assignedTenantId,
         meterType,
         utilityProvider,
-        consumerId,
-        meterNumber,
+        consumerId: consumerId.trim(),
+        meterNumber: meterNumber.trim(),
         sanctionedLoad,
         phaseType,
-        initialReading: Number(initialReading),
-        unitId: selectedUnitId,
-        tenantId: currentUser?.role === 'tenant' ? currentUser.id : 'usr_tenant_1',
+        initialReading: initialReading !== '' ? Number(initialReading) : (verificationData?.currentReading || 0),
+        verifiedLiveReading: verificationData?.currentReading,
         governmentDocumentRef: governmentDocumentRef || `GOV-SANCTION-${consumerId}`
       };
 
@@ -99,20 +183,32 @@ export default function RegisterMeterModal({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex justify-center p-3 sm:p-6 animate-in fade-in duration-200">
-      <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 flex flex-col my-auto max-h-[92vh]">
+      <div className="relative bg-white w-full max-w-xl rounded-2xl shadow-2xl border border-slate-200 flex flex-col my-auto max-h-[92vh]">
         
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/80 rounded-t-2xl">
           <div className="flex items-center space-x-3">
-            <div className={`p-2 rounded-lg ${meterType === 'electricity' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`}>
-              {meterType === 'electricity' ? <Zap className="w-5 h-5" /> : <Droplets className="w-5 h-5" />}
+            <div className={`p-2 rounded-xl ${
+              meterType === 'electricity' 
+                ? 'bg-amber-100 text-amber-800' 
+                : meterType === 'water' 
+                  ? 'bg-blue-100 text-blue-800' 
+                  : 'bg-orange-100 text-orange-800'
+            }`}>
+              {meterType === 'electricity' ? <Zap className="w-5 h-5" /> : meterType === 'water' ? <Droplets className="w-5 h-5" /> : <Flame className="w-5 h-5" />}
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900">
-                Register Government Allotted Meter
-              </h3>
+              <div className="flex items-center space-x-2">
+                <h3 className="text-base font-bold text-slate-900">
+                  Register Government Allotted Meter
+                </h3>
+                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full flex items-center space-x-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                  <span>BBPS / DISCOM Live</span>
+                </span>
+              </div>
               <p className="text-xs text-slate-500">
-                Link official electricity or water meter for tracking monthly bills
+                Link official electricity (BESCOM/BSES) or water (BWSSB/DJB) meter to any property
               </p>
             </div>
           </div>
@@ -127,41 +223,76 @@ export default function RegisterMeterModal({
         {/* Content */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
           {error && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-semibold">
-              {error}
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-semibold flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{error}</span>
             </div>
           )}
+
+          {/* Property Selector */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Target Property *
+            </label>
+            <select
+              value={selectedPropertyId}
+              onChange={(e) => {
+                setSelectedPropertyId(e.target.value);
+                setSelectedUnitId('common_area');
+              }}
+              className="w-full text-xs font-bold py-2.5 px-3 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-emerald-500"
+            >
+              {properties.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.address}, {p.city})
+                </option>
+              ))}
+            </select>
+          </div>
 
           {/* Meter Type Toggle */}
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Select Meter Type
+              Meter Category
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => handleTypeChange('electricity')}
-                className={`flex items-center justify-center space-x-2 p-3 rounded-xl border transition-all ${
+                className={`flex items-center justify-center space-x-1.5 p-2.5 rounded-xl border transition-all ${
                   meterType === 'electricity'
                     ? 'border-amber-600 bg-amber-50 text-amber-900 font-bold ring-1 ring-amber-600'
-                    : 'border-slate-200 hover:bg-slate-50 text-slate-600'
+                    : 'border-slate-200 hover:bg-slate-50 text-slate-600 text-xs'
                 }`}
               >
                 <Zap className="w-4 h-4 text-amber-600" />
-                <span className="text-xs">Electricity Meter</span>
+                <span className="text-xs">Electricity</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleTypeChange('water')}
-                className={`flex items-center justify-center space-x-2 p-3 rounded-xl border transition-all ${
+                className={`flex items-center justify-center space-x-1.5 p-2.5 rounded-xl border transition-all ${
                   meterType === 'water'
                     ? 'border-blue-600 bg-blue-50 text-blue-900 font-bold ring-1 ring-blue-600'
-                    : 'border-slate-200 hover:bg-slate-50 text-slate-600'
+                    : 'border-slate-200 hover:bg-slate-50 text-slate-600 text-xs'
                 }`}
               >
                 <Droplets className="w-4 h-4 text-blue-600" />
-                <span className="text-xs">Water Meter</span>
+                <span className="text-xs">Water</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleTypeChange('gas')}
+                className={`flex items-center justify-center space-x-1.5 p-2.5 rounded-xl border transition-all ${
+                  meterType === 'gas'
+                    ? 'border-orange-600 bg-orange-50 text-orange-900 font-bold ring-1 ring-orange-600'
+                    : 'border-slate-200 hover:bg-slate-50 text-slate-600 text-xs'
+                }`}
+              >
+                <Flame className="w-4 h-4 text-orange-600" />
+                <span className="text-xs">Piped Gas (PNG)</span>
               </button>
             </div>
           </div>
@@ -173,50 +304,43 @@ export default function RegisterMeterModal({
             </label>
             <select
               value={utilityProvider}
-              onChange={(e) => setUtilityProvider(e.target.value)}
-              className="w-full text-xs font-medium py-2 px-3 border border-slate-300 rounded-lg bg-white"
+              onChange={(e) => {
+                setUtilityProvider(e.target.value);
+                setVerificationData(null);
+              }}
+              className="w-full text-xs font-semibold py-2 px-3 border border-slate-300 rounded-lg bg-white"
             >
-              {(meterType === 'electricity' ? electricityProviders : waterProviders).map((prov) => (
+              {(meterType === 'electricity' 
+                ? electricityProviders 
+                : meterType === 'water' 
+                  ? waterProviders 
+                  : gasProviders
+              ).map((prov) => (
                 <option key={prov} value={prov}>{prov}</option>
               ))}
             </select>
           </div>
 
-          {/* Consumer ID & Meter Number */}
+          {/* Unit / Area Selection */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Consumer ID / CA / RR No. *
+                Property Unit / Allocation
               </label>
-              <input
-                type="text"
-                required
-                value={consumerId}
-                onChange={(e) => setConsumerId(e.target.value)}
-                placeholder={meterType === 'electricity' ? 'e.g. 88472910' : 'e.g. BW-KOR-302'}
-                className="w-full text-xs font-mono font-bold py-2 px-3 border border-slate-300 rounded-lg bg-white"
-              />
-              <span className="text-[10px] text-slate-400">Printed on your monthly utility bill</span>
+              <select
+                value={selectedUnitId}
+                onChange={(e) => setSelectedUnitId(e.target.value)}
+                className="w-full text-xs py-2 px-3 border border-slate-300 rounded-lg bg-white"
+              >
+                <option value="common_area">🏢 Whole Building / Common Area Meter</option>
+                {propertyUnits.map(u => (
+                  <option key={u.id} value={u.id}>
+                    🚪 {u.number} ({u.type} - {u.status})
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Physical Meter Serial No. *
-              </label>
-              <input
-                type="text"
-                required
-                value={meterNumber}
-                onChange={(e) => setMeterNumber(e.target.value)}
-                placeholder="e.g. KA-BES-2024-991"
-                className="w-full text-xs font-mono font-bold py-2 px-3 border border-slate-300 rounded-lg bg-white"
-              />
-              <span className="text-[10px] text-slate-400">Engraved on physical meter casing</span>
-            </div>
-          </div>
-
-          {/* Sanctioned Load & Initial Reading */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 Sanctioned Load / Pipe Spec
@@ -229,57 +353,135 @@ export default function RegisterMeterModal({
                 className="w-full text-xs py-2 px-3 border border-slate-300 rounded-lg bg-white"
               />
             </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Initial Meter Reading ({meterType === 'electricity' ? 'kWh' : 'kL'}) *
-              </label>
-              <input
-                type="number"
-                required
-                min={0}
-                value={initialReading}
-                onChange={(e) => setInitialReading(e.target.value)}
-                placeholder="e.g. 1200"
-                className="w-full text-xs font-bold py-2 px-3 border border-slate-300 rounded-lg bg-white"
-              />
-            </div>
           </div>
 
-          {/* Associated Unit & Gov Sanction Ref */}
+          {/* Consumer ID & Live DISCOM Verification */}
+          <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-700 flex items-center space-x-1.5">
+                <Hash className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Consumer ID / RR No / CA No *</span>
+              </label>
+              <span className="text-[10px] text-slate-400">Printed on bill</span>
+            </div>
+
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                required
+                value={consumerId}
+                onChange={(e) => {
+                  setConsumerId(e.target.value);
+                  setVerificationData(null);
+                }}
+                placeholder={meterType === 'electricity' ? 'e.g. 88472910' : 'e.g. BW-KOR-302'}
+                className="flex-1 text-xs font-mono font-bold py-2 px-3 border border-slate-300 rounded-lg bg-white uppercase"
+              />
+              <button
+                type="button"
+                onClick={handleVerifyWithServer}
+                disabled={verifying || !consumerId}
+                className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 whitespace-nowrap shadow-xs"
+              >
+                {verifying ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Search className="w-3.5 h-3.5" />
+                )}
+                <span>{verifying ? 'Querying...' : 'Verify on Gov Server'}</span>
+              </button>
+            </div>
+
+            {/* Verification Success Box */}
+            {verificationData && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2 text-xs animate-in fade-in duration-150">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-1.5 text-emerald-900 font-bold">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Real-Time DISCOM Server Verified</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
+                    ACTIVE TELEMETRY
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                  <div>
+                    <span className="text-slate-500 font-sans block">Current Live Reading:</span>
+                    <span className="font-bold text-emerald-800 text-sm">
+                      {verificationData.currentReading} {verificationData.unitOfMeasure}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 font-sans block">Tariff Code:</span>
+                    <span className="font-bold text-slate-800">{verificationData.tariffCode}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 font-sans block">Grid Voltage:</span>
+                    <span className="font-bold text-slate-700">{verificationData.gridTelemetry?.voltage}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 font-sans block">Power Factor:</span>
+                    <span className="font-bold text-slate-700">{verificationData.gridTelemetry?.powerFactor}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Physical Meter Serial & Initial Reading */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Property Unit
+                Physical Meter Serial No. *
               </label>
-              <select
-                value={selectedUnitId}
-                onChange={(e) => setSelectedUnitId(e.target.value)}
-                className="w-full text-xs py-2 px-3 border border-slate-300 rounded-lg bg-white"
-              >
-                {units.map(u => (
-                  <option key={u.id} value={u.id}>{u.number} ({u.propertyName})</option>
-                ))}
-              </select>
+              <input
+                type="text"
+                required
+                value={meterNumber}
+                onChange={(e) => setMeterNumber(e.target.value)}
+                placeholder="e.g. KA-BES-2024-991"
+                className="w-full text-xs font-mono font-bold py-2 px-3 border border-slate-300 rounded-lg bg-white uppercase"
+              />
+              <span className="text-[10px] text-slate-400">Engraved on physical meter casing</span>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Gov Sanction Ref (Optional)
+                Current Server Reading ({meterType === 'electricity' ? 'kWh' : meterType === 'water' ? 'kL' : 'SCM'}) *
               </label>
               <input
-                type="text"
-                value={governmentDocumentRef}
-                onChange={(e) => setGovernmentDocumentRef(e.target.value)}
-                placeholder="BESCOM-SANCTION-2026"
-                className="w-full text-xs font-mono py-2 px-3 border border-slate-300 rounded-lg bg-white"
+                type="number"
+                step="0.1"
+                required
+                value={initialReading}
+                onChange={(e) => setInitialReading(e.target.value)}
+                placeholder={verificationData ? `${verificationData.currentReading}` : 'e.g. 1980'}
+                className="w-full text-xs font-bold py-2 px-3 border border-slate-300 rounded-lg bg-white"
               />
+              <span className="text-[10px] text-slate-400">Synced directly with DISCOM counter</span>
             </div>
+          </div>
+
+          {/* Gov Sanction Ref */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Government Sanction / Document Ref (Optional)
+            </label>
+            <input
+              type="text"
+              value={governmentDocumentRef}
+              onChange={(e) => setGovernmentDocumentRef(e.target.value)}
+              placeholder="e.g. BESCOM-SANCTION-LT2-2026"
+              className="w-full text-xs font-mono py-2 px-3 border border-slate-300 rounded-lg bg-white"
+            />
           </div>
 
           <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center space-x-2 text-xs text-slate-600">
             <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-            <span>Once registered, monthly readings will automatically generate slab bills with historical trends.</span>
+            <span>
+              Once registered, tenants can pay utility bills directly to the respective government via Bharat BillPay (BBPS).
+            </span>
           </div>
 
           {/* Buttons */}
@@ -296,7 +498,7 @@ export default function RegisterMeterModal({
               disabled={loading}
               className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 disabled:opacity-50"
             >
-              {loading ? 'Registering...' : 'Register Government Meter'}
+              {loading ? 'Registering with DISCOM...' : 'Register Government Meter'}
             </button>
           </div>
         </form>

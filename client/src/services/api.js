@@ -172,7 +172,21 @@ export const api = {
     return res.json();
   },
 
-  // Meters & Utility Bills
+  // Meters & Utility Bills (Live DISCOM & Bharat BillPay Integration)
+  async getUtilityProviders() {
+    const res = await fetch(`${API_BASE}/utilities/providers`, { headers: getHeaders() });
+    return res.json();
+  },
+
+  async verifyGovMeter(data) {
+    const res = await fetch(`${API_BASE}/utilities/verify-gov-meter`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
   async getMeters() {
     const res = await fetch(`${API_BASE}/utilities/meters`, { headers: getHeaders() });
     return res.json();
@@ -183,6 +197,22 @@ export const api = {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async syncMeterLive(meterId) {
+    const res = await fetch(`${API_BASE}/utilities/meters/${meterId}/sync-live`, {
+      method: 'POST',
+      headers: getHeaders()
+    });
+    return res.json();
+  },
+
+  async syncAllMetersLive() {
+    const res = await fetch(`${API_BASE}/utilities/sync-all-meters`, {
+      method: 'POST',
+      headers: getHeaders()
     });
     return res.json();
   },
@@ -201,11 +231,27 @@ export const api = {
     return res.json();
   },
 
-  async payUtilityBill(billId, paymentRef) {
+  async payUtilityBill(billId, paymentRef, paymentMethod = 'UPI / BBPS Instant') {
     const res = await fetch(`${API_BASE}/utilities/bills/${billId}/pay`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ paymentRef })
+      body: JSON.stringify({ paymentRef, paymentMethod })
+    });
+    return res.json();
+  },
+
+  async payUtilityBillGovernment(billId, paymentMethod, paidBy) {
+    const res = await fetch(`${API_BASE}/utilities/bills/${billId}/pay-government`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ paymentMethod, paidBy })
+    });
+    return res.json();
+  },
+
+  async getGovernmentReceipt(billId) {
+    const res = await fetch(`${API_BASE}/utilities/bills/${billId}/government-receipt`, {
+      headers: getHeaders()
     });
     return res.json();
   },

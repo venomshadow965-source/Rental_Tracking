@@ -13,23 +13,34 @@ import {
   Calculator,
   ArrowUpRight,
   TrendingUp,
-  ShieldCheck
+  ShieldCheck,
+  RefreshCw,
+  Landmark,
+  ExternalLink,
+  Flame,
+  Activity
 } from 'lucide-react';
 
 export default function UtilitiesPage({
-  meters,
-  utilityBills,
+  meters = [],
+  utilityBills = [],
   currentUser,
   onOpenRegisterMeter,
   onOpenAddReading,
-  onOpenPayBill
+  onOpenPayBill,
+  onSyncMeter,
+  onSyncAllMeters,
+  onViewGovReceipt
 }) {
-  const [filterType, setFilterType] = useState('all'); // all, electricity, water
+  const [filterType, setFilterType] = useState('all'); // all, electricity, water, gas
   const [filterStatus, setFilterStatus] = useState('all'); // all, unpaid, paid
+  const [syncingAll, setSyncingAll] = useState(false);
+  const [syncingMeterId, setSyncingMeterId] = useState(null);
+  const [syncMessage, setSyncMessage] = useState('');
 
   // Filter bills
   const filteredBills = utilityBills.filter(b => {
-    if (filterType !== 'all' && b.meterType !== filterType) return false;
+    if (filterType !== 'all' && (b.meterType || '').toLowerCase() !== filterType) return false;
     if (filterStatus === 'unpaid' && b.status !== 'unpaid') return false;
     if (filterStatus === 'paid' && b.status !== 'paid') return false;
     return true;
@@ -45,7 +56,7 @@ export default function UtilitiesPage({
     if (!monthlyAggregates[b.billingMonth]) {
       monthlyAggregates[b.billingMonth] = { month: b.billingMonth, electricity: 0, water: 0, total: 0 };
     }
-    if (b.meterType === 'electricity') {
+    if ((b.meterType || '').toLowerCase() === 'electricity') {
       monthlyAggregates[b.billingMonth].electricity += b.amount;
     } else {
       monthlyAggregates[b.billingMonth].water += b.amount;
@@ -55,33 +66,83 @@ export default function UtilitiesPage({
 
   const monthList = Object.values(monthlyAggregates).reverse();
 
+  // Handle Sync All Meters
+  const handleSyncAll = async () => {
+    setSyncingAll(true);
+    setSyncMessage('');
+    try {
+      if (onSyncAllMeters) {
+        const res = await onSyncAllMeters();
+        setSyncMessage(res?.message || 'Live readings successfully fetched from government servers!');
+        setTimeout(() => setSyncMessage(''), 4000);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSyncingAll(false);
+    }
+  };
+
+  // Handle Single Meter Live Sync
+  const handleSyncSingleMeter = async (meterId) => {
+    setSyncingMeterId(meterId);
+    try {
+      if (onSyncMeter) {
+        await onSyncMeter(meterId);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSyncingMeterId(null);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-150">
       
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div className="space-y-1">
-          <div className="flex items-center space-x-2">
-            <div className="p-2 bg-amber-100 text-amber-800 rounded-lg">
+          <div className="flex items-center space-x-2.5">
+            <div className="p-2 bg-amber-100 text-amber-800 rounded-xl">
               <Zap className="w-5 h-5" />
             </div>
-            <h1 className="text-xl font-extrabold text-slate-900">
-              Government Meters & Utility Tracking
-            </h1>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h1 className="text-xl font-extrabold text-slate-900">
+                  Government Meters & Utility Tracking
+                </h1>
+                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full flex items-center space-x-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                  <span>DISCOM Server Live</span>
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 max-w-2xl mt-0.5">
+                Register government-allotted electricity (BESCOM/BSES) and water (BWSSB/DJB) meters, fetch live readings directly from DISCOM servers, and remit payments straight to government treasury via Bharat BillPay (BBPS).
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-slate-500 max-w-2xl">
-            Register government-allotted electricity (BESCOM/BSES) and water (BWSSB/DJB) meters, record monthly readings, pay bills instantly via BBPS/UPI, and monitor monthly cost history.
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={handleSyncAll}
+            disabled={syncingAll}
+            className="flex items-center space-x-1.5 px-3.5 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold rounded-xl text-xs shadow-xs transition-all whitespace-nowrap disabled:opacity-50"
+            title="Fetch real-time meter readings directly from DISCOM servers"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${syncingAll ? 'animate-spin' : ''}`} />
+            <span>{syncingAll ? 'Querying Gov Servers...' : 'Sync Live Gov Readings'}</span>
+          </button>
+
           <button
             onClick={onOpenRegisterMeter}
             className="flex items-center space-x-1.5 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs shadow-md transition-all whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
-            <span>Register Gov Meter</span>
+            <span>Add Gov Meter</span>
           </button>
+
           <button
             onClick={onOpenAddReading}
             className="flex items-center space-x-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-md shadow-emerald-600/20 transition-all whitespace-nowrap"
@@ -92,6 +153,14 @@ export default function UtilitiesPage({
         </div>
       </div>
 
+      {/* Sync Success Alert Notification */}
+      {syncMessage && (
+        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl text-xs font-bold flex items-center space-x-2 animate-in fade-in duration-200">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <span>{syncMessage}</span>
+        </div>
+      )}
+
       {/* SECTION 1: REGISTERED GOVERNMENT METERS */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -99,73 +168,94 @@ export default function UtilitiesPage({
             <Gauge className="w-5 h-5 text-emerald-600" />
             <span>Registered Government Meters ({meters.length})</span>
           </h2>
-          <span className="text-xs text-slate-500">Official DISCOM & Water Board records</span>
+          <span className="text-xs text-slate-500 font-mono">
+            Connected to NPCI / DISCOM Central Switch
+          </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {meters.map((meter) => {
-            const isElec = meter.meterType === 'electricity';
+            const isElec = (meter.meterType || '').toLowerCase() === 'electricity';
+            const isWater = (meter.meterType || '').toLowerCase() === 'water';
+            const isSyncingThis = syncingMeterId === meter.id;
 
             return (
               <div
                 key={meter.id}
-                className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 hover:border-emerald-300 transition-all space-y-3 relative overflow-hidden"
+                className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 hover:border-emerald-300 transition-all space-y-3 relative overflow-hidden flex flex-col justify-between"
               >
                 <div className={`absolute top-0 right-0 w-24 h-24 -mr-6 -mt-6 rounded-full opacity-10 ${
-                  isElec ? 'bg-amber-500' : 'bg-blue-500'
+                  isElec ? 'bg-amber-500' : isWater ? 'bg-blue-500' : 'bg-orange-500'
                 }`} />
 
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-2">
-                    <div className={`p-2 rounded-xl ${
-                      isElec ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
-                    }`}>
-                      {isElec ? <Zap className="w-5 h-5" /> : <Droplets className="w-5 h-5" />}
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className={`p-2 rounded-xl ${
+                        isElec ? 'bg-amber-100 text-amber-700' : isWater ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
+                      }`}>
+                        {isElec ? <Zap className="w-5 h-5" /> : isWater ? <Droplets className="w-5 h-5" /> : <Flame className="w-5 h-5" />}
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          {isElec ? 'Electricity Meter' : isWater ? 'Water Meter' : 'Piped Gas Meter'}
+                        </span>
+                        <h4 className="text-sm font-bold text-slate-900 line-clamp-1">
+                          {meter.utilityProvider}
+                        </h4>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        {isElec ? 'Electricity Meter' : 'Water Meter'}
-                      </span>
-                      <h4 className="text-sm font-bold text-slate-900 line-clamp-1">
-                        {meter.utilityProvider}
-                      </h4>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded uppercase">
-                    {meter.unitNumber}
-                  </span>
-                </div>
-
-                <div className="p-3 bg-slate-50 rounded-xl text-xs space-y-1.5 border border-slate-100 font-mono">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500 font-sans">Consumer ID / CA No:</span>
-                    <span className="font-bold text-slate-900">{meter.consumerId}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500 font-sans">Meter Serial No:</span>
-                    <span className="font-bold text-slate-900">{meter.meterNumber}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500 font-sans">Sanctioned Load:</span>
-                    <span className="font-bold text-slate-700">{meter.sanctionedLoad}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500 font-sans">Initial Reading:</span>
-                    <span className="text-slate-600">{meter.initialReading} {isElec ? 'kWh' : 'kL'}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-1">
-                  <div>
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Current Reading</span>
-                    <span className="text-base font-black text-emerald-700 font-mono">
-                      {meter.currentReading} {isElec ? 'kWh' : 'kL'}
+                    <span className="text-[10px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded uppercase">
+                      {meter.unitNumber || 'Common Area'}
                     </span>
                   </div>
 
-                  <span className="text-[11px] text-emerald-800 bg-emerald-50 font-bold px-2.5 py-1 rounded-full border border-emerald-200">
-                    Active & Linked
-                  </span>
+                  {/* Property Name */}
+                  <div className="text-[11px] text-slate-500 flex items-center justify-between">
+                    <span>Property: <strong className="text-slate-800">{meter.propertyName || 'Property'}</strong></span>
+                    <span className="text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded text-[10px] border border-emerald-200/60">
+                      🟢 Live Server
+                    </span>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 rounded-xl text-xs space-y-1.5 border border-slate-100 font-mono">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-sans">Consumer ID / CA:</span>
+                      <span className="font-bold text-slate-900">{meter.consumerId}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-sans">Meter Serial No:</span>
+                      <span className="font-bold text-slate-900">{meter.meterNumber}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-sans">Sanctioned Load:</span>
+                      <span className="font-bold text-slate-700">{meter.sanctionedLoad}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-sans">Resident:</span>
+                      <span className="font-bold text-slate-700 font-sans">{meter.tenantName || 'Allotted Resident'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Current Live Reading</span>
+                    <span className="text-base font-black text-emerald-700 font-mono">
+                      {meter.currentReading} {meter.unitOfMeasure || (isElec ? 'kWh' : 'kL')}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSyncSingleMeter(meter.id)}
+                    disabled={isSyncingThis}
+                    className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors disabled:opacity-50"
+                    title="Query DISCOM server for current reading"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isSyncingThis ? 'animate-spin' : ''}`} />
+                    <span>{isSyncingThis ? 'Syncing...' : 'Sync'}</span>
+                  </button>
                 </div>
               </div>
             );
@@ -189,11 +279,11 @@ export default function UtilitiesPage({
           <div className="flex items-center space-x-3 text-xs">
             <div className="flex items-center space-x-1.5">
               <span className="w-3 h-3 rounded-full bg-amber-500" />
-              <span className="text-slate-600 font-semibold">Electricity (BESCOM)</span>
+              <span className="text-slate-600 font-semibold">Electricity (BESCOM/BSES)</span>
             </div>
             <div className="flex items-center space-x-1.5">
               <span className="w-3 h-3 rounded-full bg-blue-500" />
-              <span className="text-slate-600 font-semibold">Water (BWSSB)</span>
+              <span className="text-slate-600 font-semibold">Water (BWSSB/DJB)</span>
             </div>
           </div>
         </div>
@@ -235,9 +325,14 @@ export default function UtilitiesPage({
         
         {/* Table Filter Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
-          <h3 className="text-base font-bold text-slate-900">
-            Monthly Utility Bills & Payment Ledger
-          </h3>
+          <div className="space-y-0.5">
+            <h3 className="text-base font-bold text-slate-900">
+              Government Utility Bills & BBPS Remittance Ledger
+            </h3>
+            <p className="text-xs text-slate-500">
+              Payments settle directly into respective State Government Utility Treasury Accounts
+            </p>
+          </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <select
@@ -248,6 +343,7 @@ export default function UtilitiesPage({
               <option value="all">All Utility Types</option>
               <option value="electricity">Electricity Only</option>
               <option value="water">Water Only</option>
+              <option value="gas">Gas (PNG) Only</option>
             </select>
 
             <select
@@ -257,7 +353,7 @@ export default function UtilitiesPage({
             >
               <option value="all">All Statuses</option>
               <option value="unpaid">Unpaid Only</option>
-              <option value="paid">Paid Only</option>
+              <option value="paid">Paid to Gov Only</option>
             </select>
           </div>
         </div>
@@ -272,16 +368,17 @@ export default function UtilitiesPage({
                 <th className="py-3 px-3">Consumer ID</th>
                 <th className="py-3 px-3">Prev / Current</th>
                 <th className="py-3 px-3">Units Consumed</th>
-                <th className="py-3 px-3">Total Cost (₹)</th>
+                <th className="py-3 px-3">Gov Bill Amount (₹)</th>
                 <th className="py-3 px-3">Due Date</th>
-                <th className="py-3 px-3">Payment Status</th>
-                <th className="py-3 px-3 text-right">Action</th>
+                <th className="py-3 px-3">Settlement Status</th>
+                <th className="py-3 px-3 text-right">Government Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredBills.map((bill) => {
                 const isPaid = bill.status === 'paid';
-                const isElec = bill.meterType === 'electricity';
+                const isElec = (bill.meterType || '').toLowerCase() === 'electricity';
+                const isWater = (bill.meterType || '').toLowerCase() === 'water';
 
                 return (
                   <tr key={bill.id} className="hover:bg-slate-50/80 transition-colors">
@@ -292,8 +389,10 @@ export default function UtilitiesPage({
                       <div className="flex items-center space-x-1.5">
                         {isElec ? (
                           <Zap className="w-3.5 h-3.5 text-amber-600" />
-                        ) : (
+                        ) : isWater ? (
                           <Droplets className="w-3.5 h-3.5 text-blue-600" />
+                        ) : (
+                          <Flame className="w-3.5 h-3.5 text-orange-600" />
                         )}
                         <span className="font-semibold">{bill.provider}</span>
                       </div>
@@ -316,24 +415,28 @@ export default function UtilitiesPage({
                       {bill.dueDate}
                     </td>
                     <td className="py-3 px-3">
-                      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                      <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full ${
                         isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800 animate-pulse'
                       }`}>
-                        {isPaid ? 'Paid' : 'Unpaid'}
+                        {isPaid ? `Paid to Gov (${bill.provider})` : 'Unpaid to Gov'}
                       </span>
                     </td>
                     <td className="py-3 px-3 text-right">
                       {!isPaid ? (
                         <button
                           onClick={() => onOpenPayBill(bill)}
-                          className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow-sm shadow-emerald-600/20"
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow-sm shadow-emerald-600/20 whitespace-nowrap"
                         >
-                          Pay Bill
+                          🏛️ Pay to Gov (BBPS)
                         </button>
                       ) : (
-                        <span className="text-[11px] text-slate-400 font-mono">
-                          {bill.paymentRef?.slice(0, 15) || 'Cleared'}
-                        </span>
+                        <button
+                          onClick={() => onViewGovReceipt && onViewGovReceipt(bill)}
+                          className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-lg text-xs transition-colors whitespace-nowrap inline-flex items-center space-x-1"
+                        >
+                          <FileText className="w-3 h-3 text-slate-600" />
+                          <span>Gov BBPS Receipt</span>
+                        </button>
                       )}
                     </td>
                   </tr>

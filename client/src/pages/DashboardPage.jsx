@@ -575,11 +575,20 @@ export default function DashboardPage({
                       <span className="text-xs font-bold text-slate-800">
                         {meter.utilityProvider.split(' ')[0]}
                       </span>
+                      <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100/70 px-1.5 py-0.2 rounded">
+                        Live Gov
+                      </span>
                     </div>
                     <span className="text-[10px] font-bold text-slate-500 uppercase">
                       {meter.unitNumber}
                     </span>
                   </div>
+
+                  {meter.propertyName && (
+                    <div className="text-[10px] text-slate-500 truncate">
+                      🏢 {meter.propertyName}
+                    </div>
+                  )}
                   
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-slate-500">Consumer ID:</span>
@@ -587,7 +596,7 @@ export default function DashboardPage({
                   </div>
 
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500">Current Reading:</span>
+                    <span className="text-slate-500">Live Server Reading:</span>
                     <span className="font-mono font-bold text-emerald-700">
                       {meter.currentReading} {meter.meterType === 'electricity' ? 'kWh' : 'kL'}
                     </span>

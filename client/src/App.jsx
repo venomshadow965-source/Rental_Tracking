@@ -24,6 +24,7 @@ import InvoiceViewerModal from './components/InvoiceViewerModal';
 import RegisterMeterModal from './components/RegisterMeterModal';
 import AddReadingModal from './components/AddReadingModal';
 import PayUtilityModal from './components/PayUtilityModal';
+import GovReceiptModal from './components/GovReceiptModal';
 import PropertyMapModal from './components/PropertyMapModal';
 
 import { api, getSavedUserId, setSavedUserId, setSavedToken } from './services/api';
@@ -57,8 +58,10 @@ export default function App() {
   const [reviewingDamage, setReviewingDamage] = useState(null);
   const [viewingInvoiceDamage, setViewingInvoiceDamage] = useState(null);
   const [showRegisterMeter, setShowRegisterMeter] = useState(false);
+  const [registerMeterPropertyId, setRegisterMeterPropertyId] = useState(null);
   const [showAddReading, setShowAddReading] = useState(false);
   const [payingBill, setPayingBill] = useState(null);
+  const [viewingGovReceipt, setViewingGovReceipt] = useState(null);
   const [viewingMapProperty, setViewingMapProperty] = useState(null);
 
   // Initial Load
@@ -250,6 +253,31 @@ export default function App() {
     return res;
   };
 
+  const handleOpenRegisterMeterForProperty = (propertyId) => {
+    setRegisterMeterPropertyId(propertyId);
+    setShowRegisterMeter(true);
+  };
+
+  // Action: Live Sync Single Meter
+  const handleSyncMeterLive = async (meterId) => {
+    const res = await api.syncMeterLive(meterId);
+    if (res.success && res.meter) {
+      setMeters(prev => prev.map(m => m.id === meterId ? res.meter : m));
+    }
+    return res;
+  };
+
+  // Action: Live Sync All Meters
+  const handleSyncAllMetersLive = async () => {
+    const res = await api.syncAllMetersLive();
+    if (res.success && res.meters) {
+      setMeters(res.meters);
+      const billsRes = await api.getUtilityBills();
+      if (billsRes.success) setUtilityBills(billsRes.bills);
+    }
+    return res;
+  };
+
   // Action: Add Monthly Reading
   const handleAddReading = async (data) => {
     const res = await api.addUtilityReading(data);
@@ -265,8 +293,8 @@ export default function App() {
   };
 
   // Action: Pay Utility Bill
-  const handlePayUtilityBill = async (billId, paymentRef) => {
-    const res = await api.payUtilityBill(billId, paymentRef);
+  const handlePayUtilityBill = async (billId, paymentRef, paymentMode = 'UPI') => {
+    const res = await api.payUtilityBill(billId, paymentRef, paymentMode);
     if (res.success) {
       setUtilityBills(prev => prev.map(b => b.id === billId ? res.bill : b));
       const notifsRes = await api.getNotifications();
@@ -437,6 +465,8 @@ export default function App() {
           <PropertiesPage
             properties={properties}
             currentUser={currentUser}
+            meters={meters}
+            onOpenRegisterMeter={(propId) => handleOpenRegisterMeterForProperty(propId)}
             onOpenAddProperty={() => {
               if (!isAdmin) {
                 alert('Access Denied: Only Landlord Administrator can list new properties.');
@@ -493,9 +523,15 @@ export default function App() {
             meters={meters}
             utilityBills={utilityBills}
             currentUser={currentUser}
-            onOpenRegisterMeter={() => setShowRegisterMeter(true)}
+            onOpenRegisterMeter={() => {
+              setRegisterMeterPropertyId(null);
+              setShowRegisterMeter(true);
+            }}
             onOpenAddReading={() => setShowAddReading(true)}
             onOpenPayBill={(bill) => setPayingBill(bill)}
+            onSyncMeter={handleSyncMeterLive}
+            onSyncAllMeters={handleSyncAllMetersLive}
+            onViewGovReceipt={(bill, receipt) => setViewingGovReceipt({ bill, receipt })}
           />
         )}
 
@@ -618,8 +654,13 @@ export default function App() {
         <RegisterMeterModal
           units={units}
           users={users}
+          properties={properties}
+          initialPropertyId={registerMeterPropertyId}
           currentUser={currentUser}
-          onClose={() => setShowRegisterMeter(false)}
+          onClose={() => {
+            setShowRegisterMeter(false);
+            setRegisterMeterPropertyId(null);
+          }}
           onSubmit={handleRegisterMeter}
         />
       )}
@@ -637,6 +678,15 @@ export default function App() {
           bill={payingBill}
           onClose={() => setPayingBill(null)}
           onPaySuccess={handlePayUtilityBill}
+          onViewGovReceipt={(bill, receipt) => setViewingGovReceipt({ bill, receipt })}
+        />
+      )}
+
+      {viewingGovReceipt && (
+        <GovReceiptModal
+          bill={viewingGovReceipt.bill}
+          receipt={viewingGovReceipt.receipt}
+          onClose={() => setViewingGovReceipt(null)}
         />
       )}
 

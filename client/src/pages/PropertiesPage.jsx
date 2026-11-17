@@ -17,17 +17,22 @@ import {
   Compass,
   ChevronDown,
   ChevronUp,
-  Map as MapIcon
+  Map as MapIcon,
+  Zap,
+  Droplets,
+  Gauge
 } from 'lucide-react';
 import PropertyMapViewer from '../components/PropertyMapViewer';
 
 export default function PropertiesPage({
   properties,
   currentUser,
+  meters = [],
   onOpenAddProperty,
   onOpenAddUnit,
   onOpenCreateAgreement,
-  onOpenMap
+  onOpenMap,
+  onOpenRegisterMeter
 }) {
   const isAdmin = currentUser?.role === 'admin';
   const [filter, setFilter] = useState('all'); // all, occupied, vacant
@@ -322,11 +327,53 @@ export default function PropertiesPage({
                           Coordinates: {property.latitude.toFixed(4)}° N, {property.longitude.toFixed(4)}° E
                         </p>
                       )}
+
+                      {/* Linked Government Meters Badge */}
+                      {(() => {
+                        const propMeters = (meters || []).filter(m => m.propertyId === property.id);
+                        if (propMeters.length > 0) {
+                          return (
+                            <div className="flex flex-wrap items-center gap-1.5 pt-1.5 text-[11px]">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-1 flex items-center space-x-1">
+                                <Gauge className="w-3 h-3 text-emerald-600" />
+                                <span>Gov Meters ({propMeters.length}):</span>
+                              </span>
+                              {propMeters.map(m => (
+                                <span
+                                  key={m.id}
+                                  className="inline-flex items-center space-x-1 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md font-mono text-[10px] text-slate-700"
+                                  title={`Consumer ID: ${m.consumerId} • Serial: ${m.meterNumber}`}
+                                >
+                                  <span>{m.meterType === 'electricity' ? '⚡' : m.meterType === 'water' ? '💧' : '🔥'}</span>
+                                  <strong className="text-slate-900">{m.utilityProvider.split(' ')[0]}</strong>
+                                  <span className="text-slate-400">({m.unitNumber})</span>
+                                  <span className="text-emerald-700 font-bold">{m.currentReading} {m.unitOfMeasure || (m.meterType === 'electricity' ? 'kWh' : 'kL')}</span>
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="pt-1 text-[11px] text-amber-700/80 flex items-center space-x-1">
+                            <Zap className="w-3 h-3 text-amber-500" />
+                            <span>No government meters registered yet.</span>
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                onClick={() => onOpenRegisterMeter && onOpenRegisterMeter(property.id)}
+                                className="underline font-bold text-amber-800 ml-1 hover:text-amber-900"
+                              >
+                                Link Gov Meter →
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2.5">
+                <div className="flex flex-wrap items-center gap-2">
                   {/* Occupancy Indicator */}
                   <div className="text-right mr-1">
                     <span className="text-[10px] text-slate-400 uppercase font-bold block">Occupancy</span>
@@ -334,6 +381,19 @@ export default function PropertiesPage({
                       {propOccupiedCount}/{propTotal} Units ({occupancyRate}%)
                     </span>
                   </div>
+
+                  {/* Add Gov Meter Button */}
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenRegisterMeter && onOpenRegisterMeter(property.id)}
+                      className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold rounded-lg text-xs transition-colors flex items-center space-x-1 shadow-2xs"
+                      title="Link official government electricity or water meter for this property"
+                    >
+                      <Zap className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Add Gov Meter</span>
+                    </button>
+                  )}
 
                   {/* Map Buttons */}
                   <button

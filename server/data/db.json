@@ -515,9 +515,124 @@
       "currentReading": 395,
       "status": "active",
       "governmentDocumentRef": "BWSSB-SANCTION-2026-89"
+    },
+    {
+      "id": "meter_1794899325194",
+      "propertyId": "prop_2",
+      "propertyName": "Shanti Niwas Villa",
+      "unitId": "unit_duplex_1",
+      "unitNumber": "Whole Property / Common Area",
+      "tenantId": "usr_tenant_1",
+      "tenantName": "Allotted Resident",
+      "meterType": "electricity",
+      "utilityProvider": "BESCOM (Bangalore Electricity Supply Company)",
+      "providerFullName": "Bangalore Electricity Supply Company Limited",
+      "billerId": "BESCOM0000NAT01",
+      "stateGovernment": "Government of Karnataka",
+      "consumerId": "88472999",
+      "meterNumber": "KA-BES-2024-999",
+      "sanctionedLoad": "4 kW",
+      "phaseType": "Single Phase Domestic (LT-2)",
+      "registrationDate": "2026-11-17",
+      "initialReading": 3793.8,
+      "currentReading": 6441.6,
+      "unitOfMeasure": "kWh",
+      "status": "active",
+      "serverSyncStatus": "LIVE_DISCOM_CONNECTED",
+      "lastSyncedAt": "2026-11-17T07:08:45.204Z",
+      "governmentDocumentRef": "GOV-SANCTION-BESCOM-325194"
     }
   ],
   "utilityBills": [
+    {
+      "id": "ubill_1794899325204",
+      "meterId": "meter_1794899325194",
+      "tenantId": "usr_tenant_1",
+      "unitId": "unit_duplex_1",
+      "meterType": "electricity",
+      "provider": "BESCOM",
+      "providerFullName": "Bangalore Electricity Supply Company Limited",
+      "billerId": "BESCOM0000NAT01",
+      "consumerId": "88472999",
+      "billingMonth": "November 2026",
+      "previousReading": 6301.6,
+      "currentReading": 6441.6,
+      "unitsConsumed": 140,
+      "ratePerUnit": 5.39,
+      "fixedCharges": 440,
+      "electricityDuty": 107.55,
+      "tariffBreakdown": [
+        {
+          "range": "1 - 100 kWh",
+          "units": 100,
+          "rate": 4.75,
+          "cost": 475
+        },
+        {
+          "range": "Above 100 kWh",
+          "units": 40,
+          "rate": 7,
+          "cost": 280
+        }
+      ],
+      "amount": 1352,
+      "billDate": "2026-11-17",
+      "dueDate": "2026-12-07",
+      "status": "paid",
+      "paidAt": "2026-11-17T07:08:45.236Z",
+      "paymentRef": "BBPS/KA/2026/BESCOM/88472999/2599",
+      "governmentReceipt": {
+        "receiptNumber": "GOV-REC-2026-581748",
+        "npciTxnId": "NPCI2026112774823294",
+        "bbpsTxnRef": "BBPS/KA/2026/BESCOM/88472999/2599",
+        "billerApprovalCode": "AUTH-BESCOM-TREASURY-345263",
+        "bankRefNo": "RBI-SETTLE-202665209763",
+        "settlementStatus": "PAID_AND_SETTLED_TO_GOVERNMENT",
+        "settlementTimestamp": "2026-11-17T07:08:45.235Z",
+        "settlementDateFormatted": "2026-11-17 at 12:38:45 IST",
+        "billerDetails": {
+          "billerId": "BESCOM0000NAT01",
+          "billerName": "Bangalore Electricity Supply Company Limited",
+          "shortName": "BESCOM",
+          "state": "Karnataka",
+          "stateGovernment": "Government of Karnataka",
+          "department": "Department of Energy & Power Transmission",
+          "treasuryEscrowAccount": "KRN-TREASURY-BESCOM-004819284",
+          "discomPortalUrl": "https://discom-live.karnataka.gov.in/bescom/api/v2"
+        },
+        "consumerDetails": {
+          "consumerId": "88472999",
+          "meterNumber": "KA-BES-2024-999",
+          "registeredName": "Allotted Resident",
+          "propertyName": "Shanti Niwas Villa",
+          "unitNumber": "Whole Property / Common Area",
+          "sanctionedLoad": "4 kW",
+          "tariffCategory": "LT-2(a) Domestic Residential"
+        },
+        "billDetails": {
+          "billId": "ubill_1794899325204",
+          "billingMonth": "November 2026",
+          "previousReading": 6301.6,
+          "currentReading": 6441.6,
+          "unitsConsumed": 140,
+          "unitOfMeasure": "kWh",
+          "amount": 1352,
+          "ratePerUnit": 5.39,
+          "fixedCharges": 440,
+          "electricityDuty": 122,
+          "paidAmount": 1352
+        },
+        "paymentDetails": {
+          "paymentChannel": "UPI (GPay / Bharat BillPay)",
+          "paymentGateway": "NPCI Bharat BillPay Central Unit (BBPCU)",
+          "clearingHouse": "Reserve Bank of India National Electronic Funds Settlement",
+          "remittanceMode": "Instant Real-Time Gross Settlement to State Treasury",
+          "digitalVerificationToken": "E82D4255B165004EF7EC3654CF5840F6",
+          "verificationQrData": "BBPS|NPCI2026112774823294|BBPS/KA/2026/BESCOM/88472999/2599|1352|BESCOM0000NAT01|PAID"
+        }
+      },
+      "notes": "Recorded monthly reading via BESCOM (Bangalore Electricity Supply Company)."
+    },
     {
       "id": "ubill_nov_elec_1",
       "meterId": "meter_elec_1",
@@ -1034,6 +1149,54 @@
     }
   ],
   "notifications": [
+    {
+      "id": "notif_1794899325236",
+      "userId": "usr_tenant_1",
+      "title": "ELECTRICITY Bill Paid to Government",
+      "message": "Payment of ₹1,352 remitted to Bangalore Electricity Supply Company Limited. NPCI Txn ID: NPCI2026112774823294.",
+      "type": "utility_paid",
+      "severity": "success",
+      "read": false,
+      "createdAt": "2026-11-17T07:08:45.236Z",
+      "actionUrl": "/utilities",
+      "actionText": "View Official Gov Receipt"
+    },
+    {
+      "id": "notif_1794899325204",
+      "userId": "usr_tenant_1",
+      "title": "New ELECTRICITY Bill: November 2026",
+      "message": "Bill amount of ₹1,352 (140 kWh) generated by BESCOM (Bangalore Electricity Supply Company). Due by 2026-12-07.",
+      "type": "utility_bill",
+      "severity": "warning",
+      "read": false,
+      "createdAt": "2026-11-17T07:08:45.230Z",
+      "actionUrl": "/utilities",
+      "actionText": "Pay via BBPS"
+    },
+    {
+      "id": "notif_1794899325194_l",
+      "userId": "usr_admin",
+      "title": "Government Meter Registered: Shanti Niwas Villa",
+      "message": "BESCOM (Bangalore Electricity Supply Company) meter (Consumer ID: 88472999) registered for Shanti Niwas Villa (Whole Property / Common Area). Live server connected.",
+      "type": "meter_registered",
+      "severity": "success",
+      "read": false,
+      "createdAt": "2026-11-17T07:08:45.194Z",
+      "actionUrl": "/utilities",
+      "actionText": "View Meter"
+    },
+    {
+      "id": "notif_1794899325194_t",
+      "userId": "usr_tenant_1",
+      "title": "Government Electricity Meter Linked",
+      "message": "BESCOM (Bangalore Electricity Supply Company) meter (Consumer ID: 88472999) registered for Shanti Niwas Villa (Whole Property / Common Area). Live server connected.",
+      "type": "meter_registered",
+      "severity": "success",
+      "read": false,
+      "createdAt": "2026-11-17T07:08:45.194Z",
+      "actionUrl": "/utilities",
+      "actionText": "View Meter"
+    },
     {
       "id": "notif_1794821557439",
       "userId": "usr_admin",
