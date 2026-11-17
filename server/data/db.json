@@ -77,6 +77,8 @@
   "properties": [
     {
       "id": "prop_1",
+      "landlordId": "usr_admin",
+      "landlordName": "Rajesh Sharma",
       "name": "Palm Heights Apartments",
       "address": "8th Cross, 4th Block, Koramangala",
       "city": "Bengaluru",
@@ -147,6 +149,8 @@
     },
     {
       "id": "prop_2",
+      "landlordId": "usr_admin",
+      "landlordName": "Rajesh Sharma",
       "name": "Shanti Niwas Villa",
       "address": "Plot 18, 12th Main, HAL 2nd Stage, Indiranagar",
       "city": "Bengaluru",

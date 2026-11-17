@@ -58,8 +58,16 @@ function getActiveUserId(req) {
    ======================================================== */
 app.get('/api/auth/users', (req, res) => {
   const db = readDb();
+  const userId = getActiveUserId(req);
+  const currentUser = db.users.find(u => u.id === userId);
+
   // Strip password when listing
-  const safeUsers = db.users.map(({ password, ...u }) => u);
+  let safeUsers = db.users.map(({ password, ...u }) => u);
+  if (currentUser && currentUser.role === 'admin') {
+    // Landlord sees tenants registered for their properties and other landlords
+    const myPropIds = new Set(db.properties.filter(p => p.landlordId === userId || (!p.landlordId && userId === 'usr_admin')).map(p => p.id));
+    safeUsers = safeUsers.filter(u => u.id === userId || (u.role === 'tenant' && myPropIds.has(u.propertyId)));
+  }
   res.json({ success: true, users: safeUsers });
 });
 
@@ -199,10 +207,13 @@ app.post('/api/auth/register', (req, res) => {
 
   db.users.push(newUser);
 
-  // If newly registered user is a tenant, notify all Landlord Admins immediately
+  // If newly registered user is a tenant, notify their property's Landlord Admin immediately
   if (role === 'tenant') {
-    const adminUsers = db.users.filter(u => u.role === 'admin');
-    adminUsers.forEach(admin => {
+    const targetLandlordId = (assignedProp && assignedProp.landlordId) ? assignedProp.landlordId : 'usr_admin';
+    const targetLandlords = db.users.filter(u => u.id === targetLandlordId || (targetLandlordId === 'usr_admin' && u.id === 'usr_admin'));
+    const landlordsToNotify = targetLandlords.length > 0 ? targetLandlords : db.users.filter(u => u.role === 'admin');
+
+    landlordsToNotify.forEach(admin => {
       db.notifications.unshift({
         id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         userId: admin.id,
@@ -241,7 +252,14 @@ app.post('/api/auth/register', (req, res) => {
    ======================================================== */
 app.get('/api/properties', (req, res) => {
   const db = readDb();
-  res.json({ success: true, properties: db.properties });
+  const userId = getActiveUserId(req);
+  const currentUser = db.users.find(u => u.id === userId);
+
+  let properties = db.properties;
+  if (currentUser && currentUser.role === 'admin') {
+    properties = properties.filter(p => p.landlordId === currentUser.id || (!p.landlordId && currentUser.id === 'usr_admin'));
+  }
+  res.json({ success: true, properties });
 });
 
 // Landlord lists a new property with units
@@ -305,6 +323,9 @@ app.post('/api/properties', (req, res) => {
 
   const newProperty = {
     id: propertyId,
+    landlordId: currentUser ? currentUser.id : 'usr_admin',
+    landlordName: currentUser ? currentUser.name : 'Rajesh Sharma',
+    landlordPhone: currentUser ? currentUser.phone : '+91 98765 43210',
     name: name.trim(),
     propertyType,
     address: address.trim(),
@@ -406,6 +427,8 @@ app.get('/api/units', (req, res) => {
         propertyId: p.id,
         propertyName: p.name,
         propertyAddress: `${p.address}, ${p.city}, ${p.state} - ${p.pincode}`,
+        landlordId: p.landlordId || 'usr_admin',
+        landlordName: p.landlordName || 'Rajesh Sharma',
         latitude: p.latitude,
         longitude: p.longitude,
         landmarks: p.landmarks,
@@ -429,6 +452,9 @@ app.get('/api/agreements', (req, res) => {
   // If tenant, only show agreements where they are the tenant
   if (currentUser && currentUser.role === 'tenant') {
     agreements = agreements.filter(a => a.tenantId === userId);
+  } else if (currentUser && currentUser.role === 'admin') {
+    const myPropIds = new Set(db.properties.filter(p => p.landlordId === userId || (!p.landlordId && userId === 'usr_admin')).map(p => p.id));
+    agreements = agreements.filter(a => a.landlordId === userId || (!a.landlordId && userId === 'usr_admin') || myPropIds.has(a.propertyId));
   }
 
   res.json({ success: true, agreements });
@@ -507,6 +533,7 @@ app.post('/api/agreements', (req, res) => {
 
   const newAgreement = {
     id: `agr_${Date.now()}`,
+    landlordId: currentUser ? currentUser.id : 'usr_admin',
     agreementNumber: `AGR/IND/${new Date().getFullYear()}/${Math.floor(100 + Math.random() * 900)}`,
     propertyId,
     propertyName,
@@ -518,8 +545,8 @@ app.post('/api/agreements', (req, res) => {
     landlordFatherName: landlordFatherName || 'Late O. P. Sharma',
     landlordAadhaar: landlordAadhaar || (currentUser ? currentUser.aadhaar : '9876-5432-1098'),
     landlordPan: landlordPan || (currentUser ? currentUser.pan : 'ABCPS1234F'),
-    landlordPhone: landlordPhone || '+91 98765 43210',
-    landlordAddress: landlordAddress || 'Koramangala, Bengaluru, Karnataka',
+    landlordPhone: landlordPhone || (currentUser ? currentUser.phone : '+91 98765 43210'),
+    landlordAddress: landlordAddress || (currentUser ? currentUser.address : 'Koramangala, Bengaluru, Karnataka'),
 
     tenantId,
     tenantName,
@@ -651,6 +678,9 @@ app.get('/api/damages', (req, res) => {
   let damages = db.damages;
   if (currentUser && currentUser.role === 'tenant') {
     damages = damages.filter(d => d.tenantId === userId);
+  } else if (currentUser && currentUser.role === 'admin') {
+    const myPropIds = new Set(db.properties.filter(p => p.landlordId === userId || (!p.landlordId && userId === 'usr_admin')).map(p => p.id));
+    damages = damages.filter(d => myPropIds.has(d.propertyId));
   }
 
   res.json({ success: true, damages });
@@ -795,6 +825,9 @@ app.get('/api/rent/invoices', (req, res) => {
   let invoices = db.rentInvoices;
   if (currentUser && currentUser.role === 'tenant') {
     invoices = invoices.filter(inv => inv.tenantId === userId);
+  } else if (currentUser && currentUser.role === 'admin') {
+    const myPropIds = new Set(db.properties.filter(p => p.landlordId === userId || (!p.landlordId && userId === 'usr_admin')).map(p => p.id));
+    invoices = invoices.filter(inv => inv.landlordId === userId || myPropIds.has(inv.propertyId));
   }
 
   res.json({ success: true, invoices });
@@ -896,6 +929,9 @@ app.get('/api/utilities/meters', (req, res) => {
   let meters = db.meters;
   if (currentUser && currentUser.role === 'tenant') {
     meters = meters.filter(m => m.tenantId === userId);
+  } else if (currentUser && currentUser.role === 'admin') {
+    const myPropIds = new Set(db.properties.filter(p => p.landlordId === userId || (!p.landlordId && userId === 'usr_admin')).map(p => p.id));
+    meters = meters.filter(m => myPropIds.has(m.propertyId));
   }
 
   res.json({ success: true, meters });
@@ -975,6 +1011,10 @@ app.get('/api/utilities/bills', (req, res) => {
   let bills = db.utilityBills;
   if (currentUser && currentUser.role === 'tenant') {
     bills = bills.filter(b => b.tenantId === userId);
+  } else if (currentUser && currentUser.role === 'admin') {
+    const myPropIds = new Set(db.properties.filter(p => p.landlordId === userId || (!p.landlordId && userId === 'usr_admin')).map(p => p.id));
+    const myMeterIds = new Set(db.meters.filter(m => myPropIds.has(m.propertyId)).map(m => m.id));
+    bills = bills.filter(b => myMeterIds.has(b.meterId));
   }
 
   res.json({ success: true, bills });

@@ -57,6 +57,8 @@ export const seedData = {
   properties: [
     {
       id: "prop_1",
+      landlordId: "usr_admin",
+      landlordName: "Rajesh Sharma",
       name: "Palm Heights Apartments",
       address: "8th Cross, 4th Block, Koramangala",
       city: "Bengaluru",
@@ -78,6 +80,8 @@ export const seedData = {
     },
     {
       id: "prop_2",
+      landlordId: "usr_admin",
+      landlordName: "Rajesh Sharma",
       name: "Shanti Niwas Villa",
       address: "Plot 18, 12th Main, HAL 2nd Stage, Indiranagar",
       city: "Bengaluru",
@@ -108,6 +112,7 @@ export const seedData = {
       propertyAddress: "Flat 302, 3rd Floor, Palm Heights Apartments, 8th Cross, 4th Block, Koramangala, Bengaluru, Karnataka - 560034",
       
       // Landlord Details
+      landlordId: "usr_admin",
       landlordName: "Rajesh Sharma",
       landlordFatherName: "Late O. P. Sharma",
       landlordAadhaar: "9876-5432-1098",
@@ -174,6 +179,7 @@ export const seedData = {
       unitNumber: "Flat 104",
       propertyAddress: "Flat 104, 1st Floor, Palm Heights Apartments, 8th Cross, 4th Block, Koramangala, Bengaluru, Karnataka - 560034",
       
+      landlordId: "usr_admin",
       landlordName: "Rajesh Sharma",
       landlordFatherName: "Late O. P. Sharma",
       landlordAadhaar: "9876-5432-1098",

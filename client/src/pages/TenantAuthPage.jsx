@@ -338,7 +338,9 @@ export default function TenantAuthPage({
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-emerald-500"
                   >
                     {units.map(u => (
-                      <option key={u.id} value={u.id}>{u.number} ({u.type})</option>
+                      <option key={u.id} value={u.id}>
+                        {u.propertyName} • {u.number} ({u.type}) - ₹{u.rent?.toLocaleString('en-IN')}/mo (Owner: {u.landlordName || 'Rajesh Sharma'})
+                      </option>
                     ))}
                   </select>
                 </div>

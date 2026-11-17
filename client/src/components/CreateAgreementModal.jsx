@@ -19,6 +19,7 @@ export default function CreateAgreementModal({
   properties, 
   units, 
   users,
+  currentUser,
   initialTenantId = null
 }) {
   const tenants = users.filter(u => u.role === 'tenant');
@@ -148,12 +149,12 @@ export default function CreateAgreementModal({
       tenantPhone,
       tenantEmail,
       tenantPermanentAddress,
-      landlordName: adminUser?.name || 'Rajesh Sharma',
+      landlordName: currentUser?.name || adminUser?.name || 'Rajesh Sharma',
       landlordFatherName: 'Late O. P. Sharma',
-      landlordAadhaar: adminUser?.aadhaar || '9876-5432-1098',
-      landlordPan: adminUser?.pan || 'ABCPS1234F',
-      landlordPhone: adminUser?.phone || '+91 98765 43210',
-      landlordAddress: adminUser?.address || 'Koramangala, Bengaluru, Karnataka',
+      landlordAadhaar: currentUser?.aadhaar || adminUser?.aadhaar || '9876-5432-1098',
+      landlordPan: currentUser?.pan || adminUser?.pan || 'ABCPS1234F',
+      landlordPhone: currentUser?.phone || adminUser?.phone || '+91 98765 43210',
+      landlordAddress: currentUser?.address || adminUser?.address || 'Koramangala, Bengaluru, Karnataka',
       termMonths,
       startDate,
       endDate,

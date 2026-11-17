@@ -550,6 +550,7 @@ export default function App() {
           properties={properties}
           units={units}
           users={users}
+          currentUser={currentUser}
           initialTenantId={targetTenantForAgreement}
           onClose={() => {
             setShowCreateAgreement(false);
