@@ -1265,13 +1265,25 @@
       "totalAmount": 45000,
       "issueDate": "2026-11-01",
       "dueDate": "2026-11-20",
-      "status": "unpaid",
-      "paidAt": null,
-      "paymentMethod": null,
-      "transactionRef": null,
-      "receiptNumber": null,
-      "bankDetails": null,
-      "upiDetails": null
+      "status": "paid",
+      "paidAt": "2026-11-17T09:02:46.304Z",
+      "paymentMethod": "Instant UPI (Google Pay)",
+      "transactionRef": "UPI/NPCI/713239614261",
+      "receiptNumber": "RCT-NOVEMBER-2026-01",
+      "bankDetails": {
+        "bankName": "HDFC Bank",
+        "accountNumber": "•••• 4092",
+        "mode": "Direct Bank Account (IMPS Real-Time Settlement)"
+      },
+      "upiDetails": {
+        "upiApp": "Google Pay",
+        "payerVpa": "achyuta.bidarahalli@okhdfcbank",
+        "payeeVpa": "rajesh.landlord@okhdfcbank",
+        "payeeName": "Rajesh Sharma",
+        "npciRrn": "713239614261",
+        "settlementRail": "NPCI UPI 2.0 Real-Time Switch",
+        "status": "CREDITED"
+      }
     },
     {
       "id": "inv_2026_10_usr_tenant_1",
@@ -2562,6 +2574,54 @@
     }
   ],
   "notifications": [
+    {
+      "id": "notif_1794906166305",
+      "userId": "usr_tenant_1794819900742",
+      "title": "Rent Debited & Receipt Ready",
+      "message": "₹45,000 debited directly from your linked bank account for November 2026. UTR: UPI/NPCI/713239614261. Official HRA receipt generated.",
+      "type": "payment_success",
+      "severity": "success",
+      "read": false,
+      "createdAt": "2026-11-17T09:02:46.304Z",
+      "actionUrl": "/payments",
+      "actionText": "Download HRA Receipt"
+    },
+    {
+      "id": "notif_1794906166304",
+      "userId": "usr_admin",
+      "title": "🟢 Real-Time Rent Payment Received",
+      "message": "Achyuta Bidarahalli paid rent of ₹45,000 for November 2026 directly via Instant UPI (Google Pay). UTR: UPI/NPCI/713239614261",
+      "type": "rent_paid",
+      "severity": "success",
+      "read": false,
+      "createdAt": "2026-11-17T09:02:46.304Z",
+      "actionUrl": "/payments",
+      "actionText": "View in Calendar"
+    },
+    {
+      "id": "notif_1794906164956",
+      "userId": "usr_tenant_1794819900742",
+      "title": "UPI Rent Payment Successful",
+      "message": "Payment of ₹45,000 for November 2026 debited via Google Pay. NPCI RRN: 713239614261. Official HRA receipt generated.",
+      "type": "payment_success",
+      "severity": "success",
+      "read": false,
+      "createdAt": "2026-11-17T09:02:44.931Z",
+      "actionUrl": "/payments",
+      "actionText": "Download HRA Receipt"
+    },
+    {
+      "id": "notif_1794906164931",
+      "userId": "usr_admin",
+      "title": "🟢 Real-Time UPI Payment Confirmed",
+      "message": "₹45,000 received on UPI Soundbox from Achyuta Bidarahalli for November 2026 via Google Pay. NPCI RRN: 713239614261.",
+      "type": "rent_paid",
+      "severity": "success",
+      "read": false,
+      "createdAt": "2026-11-17T09:02:44.931Z",
+      "actionUrl": "/payments",
+      "actionText": "View in Calendar"
+    },
     {
       "id": "notif_1794904523597",
       "userId": "usr_tenant_1794819900742",
