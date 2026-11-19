@@ -206,6 +206,24 @@ export const api = {
     return res.json();
   },
 
+  async updateLandlordBankVerification(data) {
+    const res = await fetch(`${API_BASE}/landlord/bank-verification`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async confirmUpiPayment(invoiceId, utr, upiApp = 'UPI App', payerVpa = null, note = '') {
+    const res = await fetch(`${API_BASE}/rent/confirm-upi-payment`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ invoiceId, utr, upiApp, payerVpa, note })
+    });
+    return res.json();
+  },
+
   async payRent(invoiceId, paymentMethod, transactionRef, bankDetails = null) {
     const res = await fetch(`${API_BASE}/rent/pay`, {
       method: 'POST',

@@ -151,16 +151,20 @@ export default function RentPaymentModal({
   const [paidReceipt, setPaidReceipt] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
 
+  const [realUtr, setRealUtr] = useState('');
+  const [confirmingRealUpi, setConfirmingRealUpi] = useState(false);
+
   if (!invoice) return null;
 
-  const landlordUpi = "rajesh.landlord@okhdfcbank";
-  const landlordName = "Rajesh Sharma";
+  // Dynamically resolve Landlord Real Settlement Profile (configured by landlord)
+  const landlordUpi = landlordProfile?.upi?.vpa || "rajesh.landlord@okhdfcbank";
+  const landlordName = landlordProfile?.registeredLegalName || landlordProfile?.name || "Rajesh Sharma";
   const landlordBank = {
-    name: "Rajesh Sharma",
-    bank: "State Bank of India (SBI)",
-    maskedAccount: "•••• •••• 7821",
-    ifsc: "SBIN0000800",
-    branch: "Bengaluru Main Branch"
+    name: landlordName,
+    bank: landlordProfile?.bankAccount?.bankName || "State Bank of India (SBI)",
+    maskedAccount: landlordProfile?.bankAccount?.maskedAccountNumber || "•••• •••• 7821",
+    ifsc: landlordProfile?.bankAccount?.ifsc || "SBIN0000800",
+    branch: landlordProfile?.bankAccount?.branch || "Bengaluru Main Branch"
   };
 
   // Generate standard UPI Payment Intent URI
@@ -406,6 +410,55 @@ export default function RentPaymentModal({
     }
   };
 
+  // REAL-WORLD 12-DIGIT BANK UTR PAYMENT CONFIRMATION
+  const handleConfirmRealUtrPayment = async () => {
+    setErrorMsg('');
+    const cleanUtr = (realUtr || '').trim();
+    if (!cleanUtr || cleanUtr.length < 6) {
+      setErrorMsg('Please enter the 12-digit UPI Reference Number / Bank UTR from your payment screen.');
+      return;
+    }
+    setConfirmingRealUpi(true);
+
+    try {
+      const res = await api.confirmUpiPayment(
+        invoice.id,
+        cleanUtr,
+        selectedUpiApp,
+        payerVpa || currentUser?.email || 'tenant@upi',
+        'Direct UPI settlement'
+      );
+
+      if (!res.success) {
+        throw new Error(res.message || 'Payment confirmation failed');
+      }
+
+      // Play Soundbox chime & voice
+      playUpiSuccessChime();
+      const payeeName = landlordProfile?.registeredLegalName || landlordProfile?.name || 'Landlord';
+      const announcement = `Rupees ${invoice.totalAmount.toLocaleString('en-IN')} received on KirayaSetu UPI for ${payeeName}`;
+      setSoundboxAlert(announcement);
+      speakSoundboxAlert(announcement);
+
+      confetti({
+        particleCount: 140,
+        spread: 85,
+        origin: { y: 0.6 }
+      });
+
+      setPaidReceipt(res.invoice);
+      if (onPaySuccess) {
+        onPaySuccess(invoice.id, `Real-Time UPI (${selectedUpiApp})`, cleanUtr);
+      }
+      setPaymentSuccess(true);
+    } catch (err) {
+      console.error(err);
+      setErrorMsg(err.message || 'Failed to confirm UPI payment. Please check your UTR.');
+    } finally {
+      setConfirmingRealUpi(false);
+    }
+  };
+
   // REAL-TIME DIRECT LINKED BANK ACCOUNT PAYMENT
   const handleExecuteBankPayment = async () => {
     setErrorMsg('');
@@ -573,7 +626,7 @@ export default function RentPaymentModal({
                         <BadgeCheck className="w-3.5 h-3.5 text-emerald-600" />
                       </div>
                       <p className="text-[11px] text-emerald-800 mt-0.5">
-                        Beneficiary: <strong>RAJESH SHARMA</strong> • SBI A/c •••• 7821 (IFSC: SBIN0000800)
+                        Beneficiary: <strong>{landlordName}</strong> • {landlordBank.bank} A/c {landlordBank.maskedAccount} (IFSC: {landlordBank.ifsc})
                       </p>
                     </div>
                   </div>
@@ -752,35 +805,86 @@ export default function RentPaymentModal({
                     </div>
                   )}
 
-                  {/* Real-World Action Button */}
-                  <button
-                    type="button"
-                    onClick={handleScanUpiRealTime}
-                    disabled={isScanning}
-                    className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
+                  {/* Mobile Direct Pay Button */}
+                  <a
+                    href={upiPayload}
+                    className="w-full py-3 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl text-xs font-bold shadow-md flex items-center justify-center space-x-2 transition-all"
                   >
-                    {isScanning ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>Connecting to Bank Server...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Scan className="w-4 h-4" />
-                        <span>Simulate Smartphone Scan & Pay ₹{invoice.totalAmount?.toLocaleString('en-IN')}</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </>
-                    )}
-                  </button>
+                    <Smartphone className="w-4 h-4" />
+                    <span>📱 Pay Directly with Any UPI App (Mobile)</span>
+                    <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+                  </a>
 
-                  <div className="text-center">
-                    <a
-                      href={upiPayload}
-                      className="text-[11px] font-bold text-emerald-700 hover:underline inline-flex items-center space-x-1"
+                  {/* Real-World UTR Payment Confirmation Box */}
+                  <div className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-2.5 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1.5">
+                        <FileCheck className="w-4 h-4 text-emerald-600" />
+                        <span className="text-xs font-bold text-slate-800">
+                          Confirm Real Payment via Bank UTR
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-mono">12-Digit NPCI RRN</span>
+                    </div>
+
+                    <p className="text-[11px] text-slate-500 leading-snug">
+                      Once you transfer ₹{invoice.totalAmount?.toLocaleString('en-IN')} using Google Pay, PhonePe, or Paytm, enter the 12-digit UPI Reference / UTR Number to confirm and generate your tax-exempt HRA rent receipt:
+                    </p>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="text"
+                        value={realUtr}
+                        onChange={(e) => setRealUtr(e.target.value.replace(/[^a-zA-Z0-9/_-]/g, ''))}
+                        placeholder="e.g. 432109847291 or UTR/..."
+                        maxLength={22}
+                        className="flex-1 px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold tracking-wider text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const demoUtr = String(Math.floor(400000000000 + Math.random() * 599999999999));
+                          setRealUtr(demoUtr);
+                        }}
+                        className="px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold rounded-xl whitespace-nowrap transition-colors border border-slate-200"
+                        title="Generate sample 12-digit UTR for quick testing"
+                      >
+                        Auto-Fill
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleConfirmRealUtrPayment}
+                      disabled={confirmingRealUpi || !realUtr.trim()}
+                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/30 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
                     >
-                      <span>Or Open in Mobile UPI App Directly</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </a>
+                      {confirmingRealUpi ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Verifying Bank Settlement with Landlord CBS...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>Confirm Payment & Issue HRA Receipt</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Demo Simulation Option */}
+                  <div className="pt-1 flex items-center justify-between text-[11px] text-slate-500 px-1">
+                    <span>Testing without mobile phone?</span>
+                    <button
+                      type="button"
+                      onClick={handleScanUpiRealTime}
+                      disabled={isScanning}
+                      className="text-emerald-700 font-bold hover:underline flex items-center space-x-1"
+                    >
+                      <Zap className="w-3 h-3 text-amber-500" />
+                      <span>Simulate Auto-Scan (Demo)</span>
+                    </button>
                   </div>
 
                 </div>

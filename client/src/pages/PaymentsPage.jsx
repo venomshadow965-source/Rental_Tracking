@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CreditCard, 
   Bell, 
@@ -29,8 +29,11 @@ import {
   ChevronDown,
   FileCheck,
   X,
-  QrCode
+  QrCode,
+  Edit3,
+  Settings
 } from 'lucide-react';
+import { api } from '../services/api';
 
 export default function PaymentsPage({
   invoices = [],
@@ -61,6 +64,117 @@ export default function PaymentsPage({
   // Bank & UPI Verification Inspection State
   const [showLandlordAuditModal, setShowLandlordAuditModal] = useState(false);
   const [inspectedInvoiceProof, setInspectedInvoiceProof] = useState(null);
+
+  // Landlord Real Settlement Profile State (Editable for real bank & UPI transactions)
+  const [landlordProfile, setLandlordProfile] = useState(null);
+  const [isEditingLandlordProfile, setIsEditingLandlordProfile] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editUpiId, setEditUpiId] = useState('');
+  const [editBankName, setEditBankName] = useState('');
+  const [editAccountNumber, setEditAccountNumber] = useState('');
+  const [editIfsc, setEditIfsc] = useState('');
+  const [editBranch, setEditBranch] = useState('');
+  const [editPan, setEditPan] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileSuccessMsg, setProfileSuccessMsg] = useState('');
+  const [profileErrorMsg, setProfileErrorMsg] = useState('');
+  const [ifscLookupInfo, setIfscLookupInfo] = useState(null);
+  const [ifscLoading, setIfscLoading] = useState(false);
+
+  // Load Landlord Settlement Profile
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchLandlordBanking() {
+      try {
+        const res = await api.getLandlordBankVerification();
+        if (isMounted && res.success && res.landlord) {
+          setLandlordProfile(res.landlord);
+        }
+      } catch (err) {
+        console.warn('Could not fetch landlord profile:', err);
+      }
+    }
+    fetchLandlordBanking();
+    return () => { isMounted = false; };
+  }, []);
+
+  const handleStartEditLandlordProfile = () => {
+    setEditName(landlordProfile?.registeredLegalName || landlordProfile?.name || 'Rajesh Sharma');
+    setEditUpiId(landlordProfile?.upi?.vpa || 'rajesh.landlord@okhdfcbank');
+    setEditBankName(landlordProfile?.bankAccount?.bankName || 'State Bank of India (SBI)');
+    setEditAccountNumber(landlordProfile?.bankAccount?.accountNumber || '20394819287821');
+    setEditIfsc(landlordProfile?.bankAccount?.ifsc || 'SBIN0000800');
+    setEditBranch(landlordProfile?.bankAccount?.branch || 'Bengaluru Main Branch');
+    setEditPan(landlordProfile?.pan || 'ABCPS1234F');
+    setProfileSuccessMsg('');
+    setProfileErrorMsg('');
+    setIfscLookupInfo(null);
+    setIsEditingLandlordProfile(true);
+  };
+
+  const handleIfscLookup = async (ifscCode) => {
+    const clean = ifscCode.trim().toUpperCase();
+    setEditIfsc(clean);
+    if (clean.length === 11) {
+      setIfscLoading(true);
+      try {
+        const res = await api.verifyIfsc(clean);
+        if (res.success && res.ifscDetails) {
+          setIfscLookupInfo(res.ifscDetails);
+          if (res.ifscDetails.bankName) setEditBankName(res.ifscDetails.bankName);
+          if (res.ifscDetails.branch) setEditBranch(res.ifscDetails.branch);
+        }
+      } catch (e) {
+        console.warn('IFSC lookup error:', e);
+      } finally {
+        setIfscLoading(false);
+      }
+    }
+  };
+
+  const handleSaveLandlordProfile = async (e) => {
+    e.preventDefault();
+    setProfileErrorMsg('');
+    setProfileSuccessMsg('');
+
+    if (!editUpiId || !editUpiId.includes('@')) {
+      setProfileErrorMsg('Please provide a valid UPI ID (e.g., yourname@okhdfcbank or 9876543210@paytm).');
+      return;
+    }
+    if (!editAccountNumber || editAccountNumber.length < 6) {
+      setProfileErrorMsg('Please enter a valid bank account number.');
+      return;
+    }
+
+    setSavingProfile(true);
+    try {
+      const res = await api.updateLandlordBankVerification({
+        name: editName,
+        registeredLegalName: editName,
+        upiId: editUpiId,
+        bankName: editBankName,
+        accountNumber: editAccountNumber,
+        ifsc: editIfsc,
+        branch: editBranch,
+        pan: editPan
+      });
+
+      if (res.success && res.landlord) {
+        setLandlordProfile(res.landlord);
+        setProfileSuccessMsg('🎉 Real Bank Account & UPI ID linked successfully! All tenant QR codes and mobile UPI links are now updated.');
+        setTimeout(() => {
+          setIsEditingLandlordProfile(false);
+          setProfileSuccessMsg('');
+        }, 1800);
+      } else {
+        setProfileErrorMsg(res.message || 'Failed to update bank details.');
+      }
+    } catch (err) {
+      setProfileErrorMsg(err.message || 'Network error while saving details.');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -318,25 +432,26 @@ export default function PaymentsPage({
               </div>
               
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-emerald-100 pt-0.5">
-                <div>Landlord Legal Entity: <strong className="text-white">RAJESH SHARMA</strong></div>
+                <div>Landlord Payee: <strong className="text-white">{landlordProfile?.registeredLegalName || landlordProfile?.name || 'RAJESH SHARMA'}</strong></div>
                 <div className="text-emerald-500">•</div>
-                <div>Bank: <strong className="text-white">State Bank of India (Bengaluru Main Branch)</strong></div>
+                <div>Bank: <strong className="text-white">{landlordProfile?.bankAccount?.bankName || 'State Bank of India'} ({landlordProfile?.bankAccount?.branch || 'Main Branch'})</strong></div>
                 <div className="text-emerald-500">•</div>
-                <div>A/c: <strong className="font-mono text-white">•••• 7821</strong> (IFSC: <strong className="font-mono text-white">SBIN0000800</strong>)</div>
+                <div>A/c: <strong className="font-mono text-white">{landlordProfile?.bankAccount?.maskedAccountNumber || '•••• 7821'}</strong> (IFSC: <strong className="font-mono text-white">{landlordProfile?.bankAccount?.ifsc || 'SBIN0000800'}</strong>)</div>
                 <div className="text-emerald-500">•</div>
-                <div>UPI VPA: <strong className="font-mono text-emerald-200">rajesh.landlord@okhdfcbank</strong></div>
-                <div className="text-emerald-500">•</div>
-                <div>Penny Drop: <strong className="text-emerald-300">Active (IMPS/PENNY/481920491820)</strong></div>
+                <div>UPI ID: <strong className="font-mono text-emerald-200">{landlordProfile?.upi?.vpa || 'rajesh.landlord@okhdfcbank'}</strong></div>
               </div>
             </div>
 
             <button
               type="button"
-              onClick={() => setShowLandlordAuditModal(true)}
-              className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl text-xs backdrop-blur-sm border border-white/20 transition-all flex items-center space-x-2 whitespace-nowrap self-start md:self-auto shadow-sm"
+              onClick={() => {
+                setShowLandlordAuditModal(true);
+                setIsEditingLandlordProfile(false);
+              }}
+              className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs transition-all flex items-center space-x-2 whitespace-nowrap self-start md:self-auto shadow-md cursor-pointer"
             >
-              <FileCheck className="w-4 h-4 text-emerald-300" />
-              <span>Inspect Banking & QR Certificate 🛡️</span>
+              <Settings className="w-4 h-4 text-slate-900" />
+              <span>Manage Real Bank & UPI Account ⚙️</span>
             </button>
           </div>
           
@@ -991,12 +1106,17 @@ export default function PaymentsPage({
               <div className="flex items-center space-x-2.5">
                 <ShieldCheck className="w-6 h-6 text-emerald-300" />
                 <div>
-                  <h4 className="font-extrabold text-sm">Landlord Banking & UPI Verification Certificate</h4>
+                  <h4 className="font-extrabold text-sm">
+                    {isEditingLandlordProfile ? 'Configure Real Bank & UPI Settlement' : 'Landlord Banking & UPI Verification Certificate'}
+                  </h4>
                   <p className="text-[11px] text-emerald-200">RBI Scheduled Commercial Bank & NPCI UPI 2.0 Registry</p>
                 </div>
               </div>
               <button
-                onClick={() => setShowLandlordAuditModal(false)}
+                onClick={() => {
+                  setShowLandlordAuditModal(false);
+                  setIsEditingLandlordProfile(false);
+                }}
                 className="p-1 rounded-lg hover:bg-emerald-700 text-emerald-200 hover:text-white"
               >
                 <X className="w-5 h-5" />
@@ -1005,69 +1125,245 @@ export default function PaymentsPage({
 
             <div className="p-6 space-y-4 text-xs">
               
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] uppercase tracking-wider text-emerald-700 font-bold block">Verified Landlord Legal Entity</span>
-                  <div className="text-sm font-black text-slate-900 flex items-center space-x-1.5">
-                    <span>RAJESH SHARMA</span>
-                    <BadgeCheck className="w-4 h-4 text-emerald-600 fill-current" />
+              {/* Feedback Alerts */}
+              {profileSuccessMsg && (
+                <div className="p-3 bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-xl font-bold flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-700 flex-shrink-0" />
+                  <span>{profileSuccessMsg}</span>
+                </div>
+              )}
+              {profileErrorMsg && (
+                <div className="p-3 bg-rose-100 border border-rose-300 text-rose-900 rounded-xl font-bold flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 text-rose-700 flex-shrink-0" />
+                  <span>{profileErrorMsg}</span>
+                </div>
+              )}
+
+              {/* MODE 1: EDIT / CONFIGURE REAL BANK & UPI */}
+              {isEditingLandlordProfile ? (
+                <form onSubmit={handleSaveLandlordProfile} className="space-y-3.5">
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 leading-relaxed text-[11px]">
+                    💡 <strong>Real Settlement Mode:</strong> Enter your real UPI ID and bank account. All tenant QR codes and mobile UPI links will route funds directly into this account with 0% platform charges.
                   </div>
-                  <span className="text-[11px] text-slate-500">Property Owner & Rental Tax Assessee</span>
-                </div>
-                <div className="text-right">
-                  <span className="text-[10px] text-slate-400 block font-mono">Income Tax PAN</span>
-                  <span className="font-mono font-bold text-emerald-800 bg-white px-2 py-0.5 rounded border border-emerald-200">
-                    ABCPS1234F (VERIFIED)
-                  </span>
-                </div>
-              </div>
 
-              <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden bg-slate-50/50">
-                <div className="p-3 flex justify-between items-center">
-                  <span className="text-slate-500">Core Banking Settlement:</span>
-                  <strong className="text-slate-900">State Bank of India (SBI)</strong>
-                </div>
-                <div className="p-3 flex justify-between items-center">
-                  <span className="text-slate-500">Settlement A/c Number:</span>
-                  <strong className="font-mono text-slate-900">20394819287821 (Masked: •••• 7821)</strong>
-                </div>
-                <div className="p-3 flex justify-between items-center">
-                  <span className="text-slate-500">IFSC & Branch:</span>
-                  <strong className="font-mono text-slate-900">SBIN0000800 (Bengaluru Main Branch)</strong>
-                </div>
-                <div className="p-3 flex justify-between items-center">
-                  <span className="text-slate-500">Penny Drop Verification:</span>
-                  <strong className="text-emerald-700 flex items-center space-x-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>ACTIVE (IMPS/PENNY/481920491820)</span>
-                  </strong>
-                </div>
-                <div className="p-3 flex justify-between items-center">
-                  <span className="text-slate-500">Verified UPI VPA:</span>
-                  <strong className="font-mono text-emerald-800">rajesh.landlord@okhdfcbank</strong>
-                </div>
-                <div className="p-3 flex justify-between items-center">
-                  <span className="text-slate-500">Merchant Category Code (MCC):</span>
-                  <strong className="font-mono text-slate-800">6513 (Real Estate / Property Rent)</strong>
-                </div>
-                <div className="p-3 flex justify-between items-center">
-                  <span className="text-slate-500">Bharat QR Specification:</span>
-                  <strong className="text-emerald-700 flex items-center space-x-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>NPCI Bharat QR 2.0 Certified</span>
-                  </strong>
-                </div>
-              </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                        Beneficiary Legal Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        placeholder="e.g. Rajesh Sharma"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-hidden"
+                      />
+                    </div>
 
-              <div className="flex items-center justify-end space-x-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowLandlordAuditModal(false)}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors shadow-xs"
-                >
-                  Close Certificate
-                </button>
-              </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                        Real UPI ID / VPA *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={editUpiId}
+                        onChange={(e) => setEditUpiId(e.target.value.trim().toLowerCase())}
+                        placeholder="e.g. yourname@okaxis or 9876543210@paytm"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold text-emerald-800 focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-hidden"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                        Bank IFSC Code *
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          required
+                          maxLength={11}
+                          value={editIfsc}
+                          onChange={(e) => handleIfscLookup(e.target.value)}
+                          placeholder="e.g. SBIN0000800"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold uppercase focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-hidden"
+                        />
+                        {ifscLoading && (
+                          <div className="absolute right-2.5 top-2.5 w-3.5 h-3.5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                        Account Number *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={editAccountNumber}
+                        onChange={(e) => setEditAccountNumber(e.target.value.replace(/\s+/g, ''))}
+                        placeholder="e.g. 20394819287821"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-hidden"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                        Bank Name
+                      </label>
+                      <input
+                        type="text"
+                        value={editBankName}
+                        onChange={(e) => setEditBankName(e.target.value)}
+                        placeholder="e.g. State Bank of India"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-hidden"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                        Branch & City
+                      </label>
+                      <input
+                        type="text"
+                        value={editBranch}
+                        onChange={(e) => setEditBranch(e.target.value)}
+                        placeholder="e.g. Bengaluru Main Branch"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-hidden"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                      Income Tax PAN (Optional - For Tax Exemption Receipts)
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={10}
+                      value={editPan}
+                      onChange={(e) => setEditPan(e.target.value.toUpperCase())}
+                      placeholder="e.g. ABCPS1234F"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-semibold uppercase focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-hidden"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-end space-x-2.5 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingLandlordProfile(false)}
+                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={savingProfile}
+                      className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-all shadow-md shadow-emerald-600/30 flex items-center space-x-1.5 disabled:opacity-50 cursor-pointer"
+                    >
+                      {savingProfile ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Saving & Verifying...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Save & Link Real Account</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                /* MODE 2: CERTIFICATE VIEW */
+                <>
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] uppercase tracking-wider text-emerald-700 font-bold block">Verified Landlord Legal Entity</span>
+                      <div className="text-sm font-black text-slate-900 flex items-center space-x-1.5">
+                        <span>{landlordProfile?.registeredLegalName || landlordProfile?.name || 'RAJESH SHARMA'}</span>
+                        <BadgeCheck className="w-4 h-4 text-emerald-600 fill-current" />
+                      </div>
+                      <span className="text-[11px] text-slate-500">Property Owner & Settlement Recipient</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-400 block font-mono">Income Tax PAN</span>
+                      <span className="font-mono font-bold text-emerald-800 bg-white px-2 py-0.5 rounded border border-emerald-200">
+                        {landlordProfile?.pan || 'ABCPS1234F'} (VERIFIED)
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden bg-slate-50/50">
+                    <div className="p-3 flex justify-between items-center">
+                      <span className="text-slate-500">Core Banking Settlement:</span>
+                      <strong className="text-slate-900">{landlordProfile?.bankAccount?.bankName || 'State Bank of India'}</strong>
+                    </div>
+                    <div className="p-3 flex justify-between items-center">
+                      <span className="text-slate-500">Settlement A/c Number:</span>
+                      <strong className="font-mono text-slate-900">
+                        {landlordProfile?.bankAccount?.accountNumber || '20394819287821'} ({landlordProfile?.bankAccount?.maskedAccountNumber || '•••• 7821'})
+                      </strong>
+                    </div>
+                    <div className="p-3 flex justify-between items-center">
+                      <span className="text-slate-500">IFSC & Branch:</span>
+                      <strong className="font-mono text-slate-900">
+                        {landlordProfile?.bankAccount?.ifsc || 'SBIN0000800'} ({landlordProfile?.bankAccount?.branch || 'Bengaluru Main Branch'})
+                      </strong>
+                    </div>
+                    <div className="p-3 flex justify-between items-center">
+                      <span className="text-slate-500">Penny Drop Verification:</span>
+                      <strong className="text-emerald-700 flex items-center space-x-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>ACTIVE (IMPS/CBS Verified)</span>
+                      </strong>
+                    </div>
+                    <div className="p-3 flex justify-between items-center">
+                      <span className="text-slate-500">Active UPI ID / VPA:</span>
+                      <strong className="font-mono text-emerald-800 text-xs bg-emerald-100/70 px-2 py-0.5 rounded">
+                        {landlordProfile?.upi?.vpa || 'rajesh.landlord@okhdfcbank'}
+                      </strong>
+                    </div>
+                    <div className="p-3 flex justify-between items-center">
+                      <span className="text-slate-500">Merchant Category Code (MCC):</span>
+                      <strong className="font-mono text-slate-800">6513 (Real Estate / Property Rent)</strong>
+                    </div>
+                    <div className="p-3 flex justify-between items-center">
+                      <span className="text-slate-500">Bharat QR Specification:</span>
+                      <strong className="text-emerald-700 flex items-center space-x-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>NPCI Bharat QR 2.0 Certified</span>
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <button
+                      type="button"
+                      onClick={handleStartEditLandlordProfile}
+                      className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 font-bold rounded-xl text-xs transition-colors flex items-center space-x-1.5 cursor-pointer shadow-xs"
+                    >
+                      <Edit3 className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Edit My Real Bank & UPI Details</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowLandlordAuditModal(false)}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors shadow-xs cursor-pointer"
+                    >
+                      Close Certificate
+                    </button>
+                  </div>
+                </>
+              )}
 
             </div>
           </div>
