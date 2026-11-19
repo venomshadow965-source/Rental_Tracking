@@ -52,22 +52,41 @@ async function migrate() {
   const rawJson = fs.readFileSync(DB_JSON_PATH, 'utf-8');
   const dbData = JSON.parse(rawJson);
 
-  const config = {
-    host: process.env.MYSQL_HOST || 'localhost',
-    port: Number(process.env.MYSQL_PORT) || 3306,
-    user: process.env.MYSQL_USER || 'root',
-    password: process.env.MYSQL_PASSWORD || '',
-    multipleStatements: true
-  };
+  const isRemoteOrAiven = process.env.MYSQL_SSL === 'true' || 
+    (process.env.MYSQL_HOST && process.env.MYSQL_HOST.includes('aivencloud.com')) ||
+    Boolean(process.env.DATABASE_URL || process.env.MYSQL_URI);
+
+  const targetDb = process.env.MYSQL_DATABASE || (isRemoteOrAiven ? 'defaultdb' : 'kirayasetu_db');
+
+  const config = (process.env.DATABASE_URL || process.env.MYSQL_URI)
+    ? {
+        uri: process.env.DATABASE_URL || process.env.MYSQL_URI,
+        ssl: { rejectUnauthorized: false },
+        multipleStatements: true
+      }
+    : {
+        host: process.env.MYSQL_HOST || 'localhost',
+        port: Number(process.env.MYSQL_PORT) || 3306,
+        user: process.env.MYSQL_USER || 'root',
+        password: process.env.MYSQL_PASSWORD || '',
+        database: targetDb,
+        ssl: isRemoteOrAiven ? { rejectUnauthorized: false } : undefined,
+        multipleStatements: true
+      };
 
   let connection;
   try {
     connection = await mysql.createConnection(config);
-    console.log(`✅ Connected to MySQL server at ${config.host}:${config.port}`);
+    console.log(`✅ Connected to MySQL server at ${config.host || 'remote URI'}:${config.port || ''}`);
 
-    // Check if database exists, if not create it
-    await connection.query(`CREATE DATABASE IF NOT EXISTS \`${process.env.MYSQL_DATABASE || 'kirayasetu_db'}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
-    await connection.changeUser({ database: process.env.MYSQL_DATABASE || 'kirayasetu_db' });
+    // Check if database exists / select database
+    try {
+      await connection.query(`CREATE DATABASE IF NOT EXISTS \`${targetDb}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
+      await connection.changeUser({ database: targetDb });
+    } catch (dbErr) {
+      // In managed cloud databases like Aiven, defaultdb is pre-created and restricted
+      console.log(`ℹ️ Using current database: ${targetDb}`);
+    }
 
     // Check if tables already exist
     const [existingTables] = await connection.query("SHOW TABLES LIKE 'users'");
