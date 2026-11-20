@@ -770,8 +770,18 @@ export default function RentPaymentModal({
                   </div>
                   <button
                     type="button"
-                    onClick={() => setShowUpiAuditModal(true)}
-                    className="px-3 py-1.5 bg-white hover:bg-emerald-100 text-emerald-900 border border-emerald-400 font-bold rounded-xl text-xs transition-colors shadow-xs flex items-center space-x-1 flex-shrink-0"
+                    onClick={async () => {
+                      try {
+                        const res = await api.getLandlordBankVerification();
+                        if (res?.success && res?.landlord) {
+                          setLandlordProfile(res.landlord);
+                        }
+                      } catch (e) {
+                        console.warn('Could not refresh landlord profile:', e);
+                      }
+                      setShowUpiAuditModal(true);
+                    }}
+                    className="px-3 py-1.5 bg-white hover:bg-emerald-100 text-emerald-900 border border-emerald-400 font-bold rounded-xl text-xs transition-colors shadow-xs flex items-center space-x-1 flex-shrink-0 cursor-pointer"
                   >
                     <FileCheck className="w-3.5 h-3.5 text-emerald-700" />
                     <span>Audit Certificate</span>
@@ -1656,12 +1666,32 @@ export default function RentPaymentModal({
                   <p className="text-[11px] text-emerald-200">RBI Core Banking Switch • Official Verification Record</p>
                 </div>
               </div>
-              <button
-                onClick={() => setShowUpiAuditModal(false)}
-                className="p-1 rounded-lg hover:bg-emerald-700 text-emerald-200 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center space-x-1.5">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const res = await api.getLandlordBankVerification();
+                      if (res?.success && res?.landlord) {
+                        setLandlordProfile(res.landlord);
+                      }
+                    } catch (e) {
+                      console.warn('Could not refresh landlord profile:', e);
+                    }
+                  }}
+                  className="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-emerald-200 hover:text-white rounded-lg text-xs font-bold transition-colors flex items-center space-x-1 cursor-pointer"
+                  title="Refresh live bank verification record"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Sync</span>
+                </button>
+                <button
+                  onClick={() => setShowUpiAuditModal(false)}
+                  className="p-1 rounded-lg hover:bg-emerald-700 text-emerald-200 hover:text-white cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             <div className="p-6 space-y-4 text-xs">

@@ -1422,6 +1422,9 @@ app.post('/api/verify/upi-qr', (req, res) => {
 
 // Landlord Verified Banking & UPI Profile (Real-Time Settlement Config)
 app.get('/api/landlord/bank-verification', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   const db = readDb();
   if (!db.landlordSettlementProfile) {
     const adminUser = db.users.find(u => u.role === 'admin');

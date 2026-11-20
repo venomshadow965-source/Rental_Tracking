@@ -218,7 +218,10 @@ export const api = {
   },
 
   async getLandlordBankVerification() {
-    const res = await fetch(`${API_BASE}/landlord/bank-verification`, { headers: getHeaders() });
+    const res = await fetch(`${API_BASE}/landlord/bank-verification?t=${Date.now()}`, { 
+      headers: getHeaders(),
+      cache: 'no-store'
+    });
     return res.json();
   },
 

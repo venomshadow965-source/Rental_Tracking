@@ -32,7 +32,8 @@ import {
   QrCode,
   Edit3,
   Settings,
-  Plus
+  Plus,
+  RefreshCw
 } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -186,6 +187,7 @@ export default function PaymentsPage({
 
       if (res.success && res.landlord) {
         setLandlordProfile(res.landlord);
+        if (onUpdateLandlordProfile) onUpdateLandlordProfile(res.landlord);
         setProfileSuccessMsg('🎉 Real Bank Account & UPI ID linked successfully! All tenant QR codes and mobile UPI links are now updated.');
         setTimeout(() => {
           setIsEditingLandlordProfile(false);
@@ -538,7 +540,16 @@ export default function PaymentsPage({
               ) : (
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
+                    try {
+                      const res = await api.getLandlordBankVerification();
+                      if (res?.success && res?.landlord) {
+                        setLandlordProfile(res.landlord);
+                        if (onUpdateLandlordProfile) onUpdateLandlordProfile(res.landlord);
+                      }
+                    } catch (e) {
+                      console.warn('Could not refresh landlord profile:', e);
+                    }
                     setShowLandlordAuditModal(true);
                     setIsEditingLandlordProfile(false);
                   }}
@@ -1431,15 +1442,38 @@ export default function PaymentsPage({
                   <p className="text-[11px] text-emerald-200">RBI Scheduled Commercial Bank & NPCI UPI 2.0 Registry</p>
                 </div>
               </div>
-              <button
-                onClick={() => {
-                  setShowLandlordAuditModal(false);
-                  setIsEditingLandlordProfile(false);
-                }}
-                className="p-1 rounded-lg hover:bg-emerald-700 text-emerald-200 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center space-x-1.5">
+                {!isEditingLandlordProfile && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const res = await api.getLandlordBankVerification();
+                        if (res?.success && res?.landlord) {
+                          setLandlordProfile(res.landlord);
+                          if (onUpdateLandlordProfile) onUpdateLandlordProfile(res.landlord);
+                        }
+                      } catch (e) {
+                        console.warn('Could not refresh landlord profile:', e);
+                      }
+                    }}
+                    className="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-emerald-200 hover:text-white rounded-lg text-xs font-bold transition-colors flex items-center space-x-1 cursor-pointer"
+                    title="Refresh live bank verification record"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Sync</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setShowLandlordAuditModal(false);
+                    setIsEditingLandlordProfile(false);
+                  }}
+                  className="p-1 rounded-lg hover:bg-emerald-700 text-emerald-200 hover:text-white cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             <div className="p-6 space-y-4 text-xs">
@@ -1664,19 +1698,21 @@ export default function PaymentsPage({
                   </div>
 
                   <div className="flex items-center justify-between pt-2">
-                    <button
-                      type="button"
-                      onClick={handleStartEditLandlordProfile}
-                      className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 font-bold rounded-xl text-xs transition-colors flex items-center space-x-1.5 cursor-pointer shadow-xs"
-                    >
-                      <Edit3 className="w-3.5 h-3.5 text-blue-600" />
-                      <span>Edit My Real Bank & UPI Details</span>
-                    </button>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={handleStartEditLandlordProfile}
+                        className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 font-bold rounded-xl text-xs transition-colors flex items-center space-x-1.5 cursor-pointer shadow-xs"
+                      >
+                        <Edit3 className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Edit My Real Bank & UPI Details</span>
+                      </button>
+                    )}
 
                     <button
                       type="button"
                       onClick={() => setShowLandlordAuditModal(false)}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors shadow-xs cursor-pointer"
+                      className={`px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors shadow-xs cursor-pointer ${!isAdmin ? 'ml-auto' : ''}`}
                     >
                       Close Certificate
                     </button>
