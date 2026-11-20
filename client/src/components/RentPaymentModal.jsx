@@ -171,16 +171,16 @@ export default function RentPaymentModal({
   if (!invoice) return null;
 
   // Dynamically resolve Landlord Real Settlement Profile (configured by landlord)
-  const landlordUpi = landlordProfile?.upi?.vpa || "bidarahalliachyuta@oksbi";
-  const landlordName = landlordProfile?.registeredLegalName || landlordProfile?.name || "Achyuta Bidarahalli";
-  const landlordRawAccount = landlordProfile?.bankAccount?.accountNumber || "37837268056";
+  const landlordUpi = landlordProfile?.upi?.vpa || "rajesh.landlord@okhdfcbank";
+  const landlordName = landlordProfile?.registeredLegalName || landlordProfile?.name || "Rajesh Sharma";
+  const landlordRawAccount = landlordProfile?.bankAccount?.accountNumber || "20394819287821";
   const landlordBank = {
     name: landlordName,
     bank: landlordProfile?.bankAccount?.bankName || "State Bank of India (SBI)",
     accountNumber: landlordRawAccount,
     maskedAccount: landlordProfile?.bankAccount?.maskedAccountNumber || `•••• •••• ${landlordRawAccount.slice(-4)}`,
-    ifsc: landlordProfile?.bankAccount?.ifsc || "SBIN0011821",
-    branch: landlordProfile?.bankAccount?.branch || "Branch 011821",
+    ifsc: landlordProfile?.bankAccount?.ifsc || "SBIN0000800",
+    branch: landlordProfile?.bankAccount?.branch || "Bengaluru Main Branch",
     accountType: landlordProfile?.bankAccount?.accountType || "Current / Rent Settlement Account"
   };
 

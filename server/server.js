@@ -110,10 +110,10 @@ app.post('/api/auth/login', (req, res) => {
 
   // Find user by email or phone or ID or login alias
   const cleanId = identifier.trim().toLowerCase();
-  const user = db.users.find(u => 
-    u.email.toLowerCase() === cleanId || 
+  const user = db.users.find(u =>
+    u.email.toLowerCase() === cleanId ||
     (u.aliases && u.aliases.map(a => a.toLowerCase()).includes(cleanId)) ||
-    (u.id === 'usr_admin' && (cleanId === 'bidarahalliachyuta@gmail.com' || cleanId === 'rajesh.landlord@kirayasetu.in')) ||
+    (u.id === 'usr_admin' && cleanId === 'rajesh.landlord@kirayasetu.in') ||
     u.phone.replace(/\s+/g, '') === cleanId.replace(/\s+/g, '') ||
     u.id.toLowerCase() === cleanId
   );
@@ -219,7 +219,7 @@ app.post('/api/auth/register', (req, res) => {
     maintenance: assignedUnit ? assignedUnit.maintenance : 2000,
     securityDeposit: assignedUnit ? assignedUnit.deposit : 100000,
     moveInDate: new Date().toISOString().split('T')[0],
-    avatar: role === 'admin' 
+    avatar: role === 'admin'
       ? 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80'
       : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
   };
@@ -709,15 +709,15 @@ app.post('/api/agreements', (req, res) => {
   const unit = prop ? prop.units.find(u => u.id === unitId) : null;
   const propertyName = prop ? prop.name : 'Residential Property';
   const unitNumber = unit ? unit.number : 'Unit';
-  const propertyAddress = unit && prop 
+  const propertyAddress = unit && prop
     ? `${unit.number}, ${unit.floor}, ${prop.name}, ${prop.address}, ${prop.city}, ${prop.state} - ${prop.pincode}`
     : 'Full Property Address';
 
   // Check if unit already has an active agreement with another tenant
-  const existingActiveAgr = (db.agreements || []).find(a => 
-    a.unitId === unitId && 
-    a.status !== 'terminated' && 
-    a.status !== 'expired' && 
+  const existingActiveAgr = (db.agreements || []).find(a =>
+    a.unitId === unitId &&
+    a.status !== 'terminated' &&
+    a.status !== 'expired' &&
     a.status !== 'cancelled' &&
     a.tenantId !== tenantId
   );
@@ -890,7 +890,7 @@ app.post('/api/agreements', (req, res) => {
 app.post('/api/units/:id/vacate', (req, res) => {
   const db = readDb();
   const unitId = req.params.id;
-  
+
   let targetUnit = null;
   let targetProp = null;
   db.properties.forEach(p => {
@@ -1366,11 +1366,11 @@ app.get('/api/verify/ifsc/:ifsc', (req, res) => {
 // Real-Time Bank Account Verification (₹1.00 IMPS Penny Drop)
 app.post('/api/verify/bank-account', (req, res) => {
   const { accountNumber, ifsc, accountHolder, bankName, isLandlord = false } = req.body;
-  
+
   if (!accountNumber || !ifsc) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Account Number and IFSC Code are required for bank verification.' 
+    return res.status(400).json({
+      success: false,
+      message: 'Account Number and IFSC Code are required for bank verification.'
     });
   }
 
@@ -1739,10 +1739,10 @@ app.post('/api/rent/pay', (req, res) => {
   });
 
   writeDb(db);
-  res.json({ 
-    success: true, 
-    invoice, 
-    message: `Rent of ₹${invoice.totalAmount.toLocaleString('en-IN')} successfully credited to landlord's real bank account in real-time!` 
+  res.json({
+    success: true,
+    invoice,
+    message: `Rent of ₹${invoice.totalAmount.toLocaleString('en-IN')} successfully credited to landlord's real bank account in real-time!`
   });
 });
 
@@ -1811,7 +1811,7 @@ app.post('/api/rent/simulate-upi-scan', (req, res) => {
     id: `notif_${Date.now() + 1}`,
     userId: invoice.tenantId,
     title: 'UPI Rent Payment Successful',
-    message: `Payment of ₹${invoice.totalAmount.toLocaleString('en-IN')} for ${invoice.billingMonth} credited to Landlord ${profile?.registeredLegalName || profile?.name || 'Achyuta Bidarahalli'} via ${upiApp}. NPCI RRN: ${npciRrn}. Official HRA receipt generated.`,
+    message: `Payment of ₹${invoice.totalAmount.toLocaleString('en-IN')} for ${invoice.billingMonth} credited to Landlord ${profile?.registeredLegalName || profile?.name} via ${upiApp}. NPCI RRN: ${npciRrn}. Official HRA receipt generated.`,
     type: 'payment_success',
     severity: 'success',
     read: false,
@@ -1820,15 +1820,15 @@ app.post('/api/rent/simulate-upi-scan', (req, res) => {
     actionText: 'Download HRA Receipt'
   });
 
-  writeDb(db);
+writeDb(db);
 
-  res.json({
-    success: true,
-    invoice,
-    npciRrn,
-    soundboxText: `₹${invoice.totalAmount.toLocaleString('en-IN')} received on KirayaSetu UPI for ${profile?.registeredLegalName || profile?.name || 'Achyuta Bidarahalli'}`,
-    message: `Payment of ₹${invoice.totalAmount.toLocaleString('en-IN')} confirmed in real time by NPCI UPI Gateway!`
-  });
+res.json({
+  success: true,
+  invoice,
+  npciRrn,
+  soundboxText: `₹${invoice.totalAmount.toLocaleString('en-IN')} received on KirayaSetu UPI for Rajesh Sharma`,
+  message: `Payment of ₹${invoice.totalAmount.toLocaleString('en-IN')} confirmed in real time by NPCI UPI Gateway!`
+});
 });
 
 // Admin broadcasts or sends rent due reminders to tenants
@@ -1836,7 +1836,7 @@ app.post('/api/rent/send-reminders', (req, res) => {
   const db = readDb();
   const { tenantId, month = 'November 2026', customMessage } = req.body;
 
-  const unpaidInvoices = db.rentInvoices.filter(inv => 
+  const unpaidInvoices = db.rentInvoices.filter(inv =>
     inv.status === 'unpaid' && (!tenantId || inv.tenantId === tenantId)
   );
 
@@ -2044,7 +2044,7 @@ app.post('/api/utilities/meters', (req, res) => {
 
   // Notifications for Landlord and Tenant
   const notifMsg = `${provider.name} meter (Consumer ID: ${newMeter.consumerId}) registered for ${targetProperty.name} (${targetUnitNumber}). Live server connected.`;
-  
+
   // To tenant
   if (targetTenantId) {
     db.notifications.unshift({

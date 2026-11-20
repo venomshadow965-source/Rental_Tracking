@@ -92,7 +92,7 @@ export default function HraReceiptModal({ invoice, onClose }) {
                   <div className="flex justify-between pt-1 border-t border-slate-200">
                     <span className="text-slate-600">Settled to Landlord A/c:</span>
                     <span className="font-bold text-emerald-800 text-right">
-                      {invoice.landlordSettlement?.bankName || invoice.upiDetails?.settlementBank || 'State Bank of India (SBI)'} ({invoice.landlordSettlement?.maskedAccountNumber || '•••• 8056'}) • IFSC: {invoice.landlordSettlement?.ifsc || 'SBIN0011821'}
+                      {invoice.landlordSettlement?.bankName || invoice.upiDetails?.settlementBank || 'State Bank of India (SBI)'} ({invoice.landlordSettlement?.maskedAccountNumber || '•••• 7821'}) • IFSC: {invoice.landlordSettlement?.ifsc || 'SBIN0000800'}
                     </span>
                   </div>
                 )}
@@ -104,7 +104,7 @@ export default function HraReceiptModal({ invoice, onClose }) {
               <div>
                 <span className="text-xs text-slate-500 block uppercase font-bold">Landlord / House Owner</span>
                 <p className="font-bold text-slate-900 text-base mt-0.5">
-                  {invoice.landlordName || invoice.landlordSettlement?.name || 'Achyuta Bidarahalli'}
+                  {invoice.landlordName || invoice.landlordSettlement?.name || 'Rajesh Sharma'}
                 </p>
                 <div className="mt-1">
                   <span className="text-xs text-slate-500">Landlord PAN: </span>
@@ -125,7 +125,7 @@ export default function HraReceiptModal({ invoice, onClose }) {
                 {/* Diagonal Signature across stamp */}
                 <div className="absolute inset-0 flex items-center justify-center -rotate-12 pointer-events-none">
                   <span className="font-serif italic font-bold text-blue-900 text-sm tracking-wide border-b-2 border-blue-900 pb-0.5">
-                    {invoice.landlordName || invoice.landlordSettlement?.name || 'Achyuta Bidarahalli'}
+                    {invoice.landlordName || invoice.landlordSettlement?.name || 'Rajesh Sharma'}
                   </span>
                 </div>
               </div>

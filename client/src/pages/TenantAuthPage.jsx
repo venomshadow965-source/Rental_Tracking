@@ -339,7 +339,7 @@ export default function TenantAuthPage({
                   >
                     {units.map(u => (
                       <option key={u.id} value={u.id}>
-                        {u.propertyName} • {u.number} ({u.type}) - ₹{u.rent?.toLocaleString('en-IN')}/mo (Owner: {u.landlordName || 'Achyuta Bidarahalli'})
+                        {u.propertyName} • {u.number} ({u.type}) - ₹{u.rent?.toLocaleString('en-IN')}/mo (Owner: {u.landlordName || 'Rajesh Sharma'})
                       </option>
                     ))}
                   </select>

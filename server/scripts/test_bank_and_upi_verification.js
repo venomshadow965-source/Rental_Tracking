@@ -170,13 +170,13 @@ assert(tamperedRes.isValid === false, 'Rejects non-INR currency in Bharat QR');
 console.log('\n--- 6. Landlord Verified Banking & KYC Profile Tests ---');
 
 const landlordProfile = getVerifiedLandlordBankingProfile();
-assert(landlordProfile.registeredLegalName === 'ACHYUTA BIDARAHALLI' || landlordProfile.registeredLegalName === 'RAJESH SHARMA', 'Landlord legal entity is verified');
+assert(landlordProfile.registeredLegalName === 'RAJESH SHARMA', 'Landlord legal entity is verified');
 assert(landlordProfile.pan === 'ABCPS1234F', 'Landlord Income Tax PAN is ABCPS1234F');
 assert(landlordProfile.panStatus === 'VERIFIED_ACTIVE_NSDL', 'PAN is verified active via NSDL');
 assert(landlordProfile.bankAccount.bankCode === 'SBIN', 'Bank code is SBIN');
-assert(landlordProfile.bankAccount.ifsc === 'SBIN0011821' || landlordProfile.bankAccount.ifsc === 'SBIN0000800', 'IFSC is verified');
+assert(landlordProfile.bankAccount.ifsc === 'SBIN0000800', 'IFSC is verified');
 assert(landlordProfile.bankAccount.pennyDropStatus === 'ACTIVE', 'Penny drop status is ACTIVE');
-assert(landlordProfile.upi.vpa === 'bidarahalliachyuta@oksbi' || landlordProfile.upi.vpa === 'rajesh.landlord@okhdfcbank', 'UPI VPA is verified');
+assert(landlordProfile.upi.vpa === 'rajesh.landlord@okhdfcbank', 'UPI VPA is verified');
 assert(landlordProfile.verificationSummary.taxExemptionReceiptsEligible === true, 'HRA Section 10(13A) receipts eligible');
 
 // -------------------------------------------------------------

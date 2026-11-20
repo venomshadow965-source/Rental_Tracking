@@ -101,20 +101,6 @@ export const KNOWN_IFSC_DIRECTORY = {
     neft: true,
     imps: true,
     upi: true
-  },
-  'SBIN0011821': {
-    bankName: 'State Bank of India',
-    bankCode: 'SBIN',
-    branch: 'Branch 011821',
-    address: 'Authorized RBI Scheduled Commercial Banking Branch',
-    city: 'Bengaluru',
-    district: 'Bengaluru Urban',
-    state: 'Karnataka',
-    micr: '560312645',
-    rtgs: true,
-    neft: true,
-    imps: true,
-    upi: true
   }
 };
 
@@ -385,8 +371,8 @@ export function verifyUpiVpa(vpa) {
   let category = 'Individual (P2P / P2M)';
   let mcc = '0000';
 
-  if (cleanVpa === 'bidarahalliachyuta@oksbi' || cleanVpa === 'rajesh.landlord@okhdfcbank' || username.includes('achyuta') || username.includes('bidarahalli') || username.includes('rajesh') || username.includes('landlord')) {
-    registeredLegalName = (cleanVpa.includes('achyuta') || cleanVpa.includes('bidarahalli')) ? 'ACHYUTA BIDARAHALLI' : 'RAJESH SHARMA';
+  if (cleanVpa === 'rajesh.landlord@okhdfcbank' || username.includes('rajesh') || username.includes('landlord')) {
+    registeredLegalName = 'RAJESH SHARMA';
     category = 'Residential Real Estate / Property Rent Beneficiary';
     mcc = '6513';
   } else if (cleanVpa.includes('jason') || username.includes('jason')) {
@@ -399,10 +385,6 @@ export function verifyUpiVpa(vpa) {
     mcc = '0000';
   } else if (cleanVpa.includes('amit') || username.includes('amit')) {
     registeredLegalName = 'AMIT PATEL';
-    category = 'Verified Tenant Payer';
-    mcc = '0000';
-  } else if (cleanVpa.includes('achyuta') || username.includes('achyuta')) {
-    registeredLegalName = 'ACHYUTA BIDARAHALLI';
     category = 'Verified Tenant Payer';
     mcc = '0000';
   } else {
@@ -519,39 +501,39 @@ export function verifyUpiQrPayload(payloadString) {
 }
 
 /**
- * Return Verified Landlord Profile (Default: Achyuta Bidarahalli)
+ * Return Verified Landlord Profile (Demo Landlord: Rajesh Sharma)
  */
 export function getVerifiedLandlordBankingProfile() {
-  const ifscDetails = validateIfsc('SBIN0011821');
+  const ifscDetails = validateIfsc('SBIN0000800');
 
   return {
     landlordId: 'usr_admin',
-    name: 'Achyuta Bidarahalli',
-    registeredLegalName: 'ACHYUTA BIDARAHALLI',
+    name: 'Rajesh Sharma',
+    registeredLegalName: 'RAJESH SHARMA',
     pan: 'ABCPS1234F',
     panStatus: 'VERIFIED_ACTIVE_NSDL',
     bankAccount: {
       bankName: 'State Bank of India (SBI)',
       bankCode: 'SBIN',
-      accountNumber: '37837268056',
-      maskedAccountNumber: '•••• •••• 8056',
+      accountNumber: '20394819287821',
+      maskedAccountNumber: '•••• •••• 7821',
       accountType: 'Current / Rent Settlement Account',
-      ifsc: 'SBIN0011821',
-      branch: ifscDetails.branch || 'Branch 011821',
+      ifsc: 'SBIN0000800',
+      branch: ifscDetails.branch || 'Bengaluru Main Branch',
       city: ifscDetails.city || 'Bengaluru',
-      micr: ifscDetails.micr || '560312645',
+      micr: ifscDetails.micr || '560002002',
       isVerified: true,
       pennyDropStatus: 'ACTIVE',
-      pennyDropUtr: 'IMPS/PENNY/1795152981212',
-      pennyDropDate: '2026-11-20T05:36:21.213Z',
+      pennyDropUtr: 'IMPS/PENNY/481920491820',
+      pennyDropDate: '2026-05-01T09:30:00Z',
       verifiedBy: 'RBI Core Banking Switch (CBS)'
     },
     upi: {
-      vpa: 'bidarahalliachyuta@oksbi',
-      handle: 'oksbi',
+      vpa: 'rajesh.landlord@okhdfcbank',
+      handle: 'okhdfcbank',
       psp: 'State Bank of India',
-      merchantName: 'Achyuta Bidarahalli',
-      registeredLegalName: 'ACHYUTA BIDARAHALLI',
+      merchantName: 'Rajesh Sharma',
+      registeredLegalName: 'RAJESH SHARMA',
       mcc: '6513',
       mccCategory: 'Real Estate / Residential Property Rental',
       isVerified: true,
@@ -562,8 +544,8 @@ export function getVerifiedLandlordBankingProfile() {
       isFullyVerified: true,
       tier: 'Level 3 - Enterprise Certified Landlord',
       taxExemptionReceiptsEligible: true,
-      auditReference: 'RBI-KYC-981213',
-      lastAuditedAt: '2026-11-20T05:36:21.213Z'
+      auditReference: 'RBI-KYC-2026-BLR-8921',
+      lastAuditedAt: '2026-11-01T00:00:00Z'
     }
   };
 }
