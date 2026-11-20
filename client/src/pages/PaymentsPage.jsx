@@ -507,6 +507,15 @@ export default function PaymentsPage({
                 <div>IFSC: <strong className="font-mono text-emerald-200">{landlordProfile?.bankAccount?.ifsc || 'SBIN0000800'}</strong></div>
                 <div className="text-emerald-500">•</div>
                 <div>UPI ID: <strong className="font-mono text-emerald-200">{landlordProfile?.upi?.vpa || 'rajesh.landlord@okhdfcbank'}</strong></div>
+                {isAdmin && (
+                  <>
+                    <div className="text-emerald-500">•</div>
+                    <div className="bg-emerald-950/70 px-2.5 py-0.5 rounded-full border border-emerald-400/40 text-emerald-200 font-semibold flex items-center space-x-1">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>Live Credited: <strong className="text-white font-mono">₹{currentCollected.toLocaleString('en-IN')}</strong></span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 

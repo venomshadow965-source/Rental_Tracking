@@ -250,6 +250,53 @@ export default function RentPaymentModal({
     return () => clearInterval(timer);
   }, []);
 
+  // Real-time invoice settlement listener & polling (detects live phone scan & payments)
+  useEffect(() => {
+    if (paymentSuccess || !invoice?.id) return;
+
+    let isSubscribed = true;
+    const checkLivePaymentStatus = async () => {
+      try {
+        const res = await api.getRentInvoiceStatus(invoice.id);
+        if (isSubscribed && res?.success && res?.invoice?.status === 'paid') {
+          playUpiSuccessChime();
+          const announcement = `Rupees ${res.invoice.totalAmount?.toLocaleString('en-IN')} received on KirayaSetu UPI for ${landlordName}`;
+          setSoundboxAlert(announcement);
+          speakSoundboxAlert(announcement);
+          confetti({
+            particleCount: 140,
+            spread: 85,
+            origin: { y: 0.6 }
+          });
+          setPaidReceipt(res.invoice);
+          setPaymentSuccess(true);
+          if (onPaySuccess) {
+            onPaySuccess(res.invoice.id, res.invoice.paymentMethod || 'Instant UPI', res.invoice.transactionRef, res.invoice);
+          }
+        }
+      } catch (e) {
+        // silent check
+      }
+    };
+
+    // Poll every 2.5 seconds while QR modal is active
+    const pollTimer = setInterval(checkLivePaymentStatus, 2500);
+
+    // Also check immediately when user switches back to browser tab after paying on mobile UPI app
+    const handleFocus = () => {
+      checkLivePaymentStatus();
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
+    return () => {
+      isSubscribed = false;
+      clearInterval(pollTimer);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
+  }, [invoice?.id, paymentSuccess, landlordName]);
+
   const selectedAccount = bankAccounts.find(b => b.id === selectedBankId) || bankAccounts[0];
 
   const handleCopyUpi = () => {
@@ -825,7 +872,10 @@ export default function RentPaymentModal({
                         alt={`UPI QR Code to pay ₹${invoice.totalAmount} to ${landlordUpi}`}
                         className="w-44 h-44 object-contain rounded-lg"
                         onError={(e) => {
-                          e.target.style.display = 'none';
+                          if (!e.target.dataset.triedFallback) {
+                            e.target.dataset.triedFallback = 'true';
+                            e.target.src = `https://chart.googleapis.com/chart?chs=220x220&cht=qr&chl=${encodeURIComponent(upiPayload)}&chld=M|2`;
+                          }
                         }}
                       />
                     </div>
@@ -969,7 +1019,7 @@ export default function RentPaymentModal({
                     ) : (
                       <>
                         <Zap className="w-4 h-4 text-amber-300 fill-current" />
-                        <span>⚡ Pay ₹{invoice.totalAmount?.toLocaleString('en-IN')} via Instant UPI</span>
+                        <span>⚡ Scan & Pay ₹{invoice.totalAmount?.toLocaleString('en-IN')} (Instant Credit to Landlord)</span>
                       </>
                     )}
                   </button>

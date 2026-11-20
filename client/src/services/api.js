@@ -249,6 +249,11 @@ export const api = {
     return res.json();
   },
 
+  async getRentInvoiceStatus(id) {
+    const res = await fetch(`${API_BASE}/rent/invoice-status/${encodeURIComponent(id)}`, { headers: getHeaders() });
+    return res.json();
+  },
+
   async getBankAccounts() {
     const res = await fetch(`${API_BASE}/user/bank-accounts`, { headers: getHeaders() });
     return res.json();

@@ -380,25 +380,30 @@ export default function App() {
     return res;
   };
 
-  // Periodic background sync for real-time notifications & registered tenants
+  // Periodic background sync for real-time notifications, rent payments & registered tenants
   useEffect(() => {
     if (!currentUser) return;
     const interval = setInterval(async () => {
       try {
-        const notifsRes = await api.getNotifications();
-        if (notifsRes.success) setNotifications(notifsRes.notifications);
+        const [notifsRes, invsRes] = await Promise.all([
+          api.getNotifications(),
+          api.getRentInvoices()
+        ]);
+        if (notifsRes.success && notifsRes.notifications) setNotifications(notifsRes.notifications);
+        if (invsRes.success && invsRes.invoices) setInvoices(invsRes.invoices);
+
         if (currentUser.role === 'admin') {
           const [usersRes, agrsRes] = await Promise.all([
             api.getUsers(),
             api.getAgreements()
           ]);
-          if (usersRes.success) setUsers(usersRes.users);
-          if (agrsRes.success) setAgreements(agrsRes.agreements);
+          if (usersRes.success && usersRes.users) setUsers(usersRes.users);
+          if (agrsRes.success && agrsRes.agreements) setAgreements(agrsRes.agreements);
         }
       } catch (err) {
         // silent sync catch
       }
-    }, 6000);
+    }, 3500);
     return () => clearInterval(interval);
   }, [currentUser]);
 

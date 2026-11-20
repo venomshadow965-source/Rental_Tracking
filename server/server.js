@@ -1571,6 +1571,114 @@ app.put('/api/landlord/bank-verification', (req, res) => {
   });
 });
 
+// Helper function to credit rent directly to Landlord bank account in real-time
+function creditRentToLandlord(db, invoice, utr, paymentMethod, upiApp = 'UPI', payerVpa = null, note = '', bankDetails = null) {
+  const profile = db.landlordSettlementProfile || getVerifiedLandlordBankingProfile();
+  const now = new Date().toISOString();
+
+  invoice.status = 'paid';
+  invoice.paidAt = now;
+  invoice.paymentMethod = paymentMethod;
+  invoice.transactionRef = utr;
+  invoice.upiDetails = {
+    upiApp: upiApp || 'Instant UPI',
+    payerVpa: payerVpa || `${(invoice.tenantName || 'tenant').toLowerCase().replace(/\s+/g, '.')}@okhdfcbank`,
+    payeeVpa: profile?.upi?.vpa || 'rajesh.landlord@okhdfcbank',
+    payeeName: profile?.registeredLegalName || profile?.name || 'Rajesh Sharma',
+    npciRrn: utr,
+    settlementRail: 'NPCI UPI 2.0 Real-Time Switch',
+    status: 'CREDITED_TO_LANDLORD_BANK',
+    settlementBank: profile?.bankAccount?.bankName || 'State Bank of India (SBI)',
+    note: note || ''
+  };
+  invoice.landlordSettlement = {
+    name: profile?.registeredLegalName || profile?.name || 'Rajesh Sharma',
+    bankName: profile?.bankAccount?.bankName || 'State Bank of India (SBI)',
+    accountNumber: profile?.bankAccount?.accountNumber || '20394819287821',
+    maskedAccountNumber: profile?.bankAccount?.maskedAccountNumber || '•••• 7821',
+    ifsc: profile?.bankAccount?.ifsc || 'SBIN0000800',
+    branch: profile?.bankAccount?.branch || 'Bengaluru Main Branch',
+    upiId: profile?.upi?.vpa || 'rajesh.landlord@okhdfcbank',
+    pan: profile?.pan || 'ABCPS1234F'
+  };
+  if (bankDetails) {
+    invoice.bankDetails = bankDetails;
+  }
+  invoice.landlordName = profile?.registeredLegalName || profile?.name || 'Rajesh Sharma';
+  invoice.landlordPan = profile?.pan || 'ABCPS1234F';
+  invoice.receiptNumber = `RCT-${invoice.billingMonth.replace(' ', '-').toUpperCase()}-${invoice.unitNumber.replace(/\D/g, '') || '01'}`;
+
+  // Credit directly into Landlord Settlement Balance & Ledger
+  if (!profile.settledBalance) profile.settledBalance = 0;
+  profile.settledBalance += invoice.totalAmount;
+  profile.lastSettledAt = now;
+
+  if (!Array.isArray(profile.recentSettlements)) {
+    profile.recentSettlements = [];
+  }
+  const settlementEntry = {
+    id: `stl_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`,
+    invoiceId: invoice.id,
+    amount: invoice.totalAmount,
+    tenantName: invoice.tenantName,
+    unitNumber: invoice.unitNumber,
+    propertyName: invoice.propertyName,
+    billingMonth: invoice.billingMonth,
+    utr,
+    method: paymentMethod,
+    creditedToBank: profile?.bankAccount?.bankName || 'State Bank of India (SBI)',
+    accountNumber: profile?.bankAccount?.accountNumber || '20394819287821',
+    maskedAccountNumber: profile?.bankAccount?.maskedAccountNumber || '•••• 7821',
+    ifsc: profile?.bankAccount?.ifsc || 'SBIN0000800',
+    settledAt: now,
+    status: 'SETTLED_INSTANT_CREDIT',
+    settlementRail: 'NPCI IMPS / UPI 2.0 Core Banking Switch'
+  };
+  profile.recentSettlements.unshift(settlementEntry);
+  if (profile.recentSettlements.length > 50) {
+    profile.recentSettlements = profile.recentSettlements.slice(0, 50);
+  }
+  db.landlordSettlementProfile = profile;
+
+  // Real-Time Landlord User Balance & Notification
+  const adminUser = db.users.find(u => u.role === 'admin');
+  if (adminUser) {
+    if (!adminUser.bankAccount) adminUser.bankAccount = {};
+    if (!adminUser.bankAccount.settledBalance) adminUser.bankAccount.settledBalance = 0;
+    adminUser.bankAccount.settledBalance += invoice.totalAmount;
+    adminUser.bankAccount.lastSettledAt = now;
+
+    db.notifications.unshift({
+      id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      userId: adminUser.id,
+      title: '🟢 Real-Time Rent Payment Received',
+      message: `₹${invoice.totalAmount.toLocaleString('en-IN')} received via UPI from ${invoice.tenantName} for ${invoice.billingMonth} credited directly into your ${profile?.bankAccount?.bankName || 'Bank'} account (${profile?.bankAccount?.maskedAccountNumber || '•••• 7821'}). UTR: ${utr}.`,
+      type: 'rent_paid',
+      severity: 'success',
+      read: false,
+      createdAt: now,
+      actionUrl: '/payments',
+      actionText: 'View in Calendar'
+    });
+  }
+
+  // Real-Time Tenant Confirmation Notification
+  db.notifications.unshift({
+    id: `notif_${Date.now() + 1}_${Math.random().toString(36).substring(2, 6)}`,
+    userId: invoice.tenantId,
+    title: 'UPI Rent Payment Successful & Receipt Ready',
+    message: `Payment of ₹${invoice.totalAmount.toLocaleString('en-IN')} for ${invoice.billingMonth} transferred directly to Landlord ${profile?.registeredLegalName || profile?.name}'s account (${profile?.bankAccount?.maskedAccountNumber || '•••• 7821'}). UTR: ${utr}. Official HRA receipt generated.`,
+    type: 'payment_success',
+    severity: 'success',
+    read: false,
+    createdAt: now,
+    actionUrl: '/payments',
+    actionText: 'Download HRA Receipt'
+  });
+
+  return { profile, settlementEntry };
+}
+
 // Real-Time Confirmation with 12-Digit Bank UTR / Reference
 app.post('/api/rent/confirm-upi-payment', (req, res) => {
   const db = readDb();
@@ -1593,69 +1701,7 @@ app.post('/api/rent/confirm-upi-payment', (req, res) => {
     return res.status(404).json({ success: false, message: 'Rent invoice not found' });
   }
 
-  const profile = db.landlordSettlementProfile || getVerifiedLandlordBankingProfile();
-  const now = new Date().toISOString();
-
-  invoice.status = 'paid';
-  invoice.paidAt = now;
-  invoice.paymentMethod = `Real-Time UPI (${upiApp})`;
-  invoice.transactionRef = cleanUtr;
-  invoice.upiDetails = {
-    upiApp,
-    payerVpa: payerVpa || `${(invoice.tenantName || 'tenant').toLowerCase().replace(/\s+/g, '.')}@upi`,
-    payeeVpa: profile?.upi?.vpa || 'rajesh.landlord@okhdfcbank',
-    payeeName: profile?.registeredLegalName || profile?.name || 'Rajesh Sharma',
-    npciRrn: cleanUtr,
-    settlementRail: 'NPCI UPI 2.0 Real-Time Switch',
-    status: 'CREDITED_TO_LANDLORD_BANK',
-    settlementBank: profile?.bankAccount?.bankName || 'State Bank of India',
-    note: note || ''
-  };
-  invoice.landlordSettlement = {
-    name: profile?.registeredLegalName || profile?.name || 'Rajesh Sharma',
-    bankName: profile?.bankAccount?.bankName || 'State Bank of India',
-    accountNumber: profile?.bankAccount?.accountNumber || '20394819287821',
-    maskedAccountNumber: profile?.bankAccount?.maskedAccountNumber || '•••• 7821',
-    ifsc: profile?.bankAccount?.ifsc || 'SBIN0000800',
-    branch: profile?.bankAccount?.branch || 'Main Branch',
-    upiId: profile?.upi?.vpa || 'rajesh.landlord@okhdfcbank',
-    pan: profile?.pan || 'ABCPS1234F'
-  };
-  invoice.landlordName = profile?.registeredLegalName || profile?.name || 'Rajesh Sharma';
-  invoice.landlordPan = profile?.pan || 'ABCPS1234F';
-  invoice.receiptNumber = `RCT-${invoice.billingMonth.replace(' ', '-').toUpperCase()}-${invoice.unitNumber.replace(/\D/g, '') || '01'}`;
-
-  // Notify Landlord in real time
-  const adminUser = db.users.find(u => u.role === 'admin');
-  if (adminUser) {
-    db.notifications.unshift({
-      id: `notif_${Date.now()}`,
-      userId: adminUser.id,
-      title: '🟢 Real-Time Rent Payment Received',
-      message: `${invoice.tenantName} paid rent of ₹${invoice.totalAmount.toLocaleString('en-IN')} for ${invoice.billingMonth} directly to your ${profile?.bankAccount?.bankName || 'Bank'} (${profile?.bankAccount?.maskedAccountNumber || '•••• 7821'}) via UPI (${profile?.upi?.vpa}). Bank UTR: ${cleanUtr}.`,
-      type: 'rent_paid',
-      severity: 'success',
-      read: false,
-      createdAt: now,
-      actionUrl: '/payments',
-      actionText: 'View in Calendar'
-    });
-  }
-
-  // Confirm to Tenant
-  db.notifications.unshift({
-    id: `notif_${Date.now() + 1}`,
-    userId: invoice.tenantId,
-    title: 'UPI Rent Payment Verified & Receipt Ready',
-    message: `Payment of ₹${invoice.totalAmount.toLocaleString('en-IN')} for ${invoice.billingMonth} confirmed. Bank UTR: ${cleanUtr}. Beneficiary: ${profile?.registeredLegalName || profile?.name} (${profile?.upi?.vpa}). Official HRA receipt generated.`,
-    type: 'payment_success',
-    severity: 'success',
-    read: false,
-    createdAt: now,
-    actionUrl: '/payments',
-    actionText: 'Download HRA Receipt'
-  });
-
+  const { profile } = creditRentToLandlord(db, invoice, cleanUtr, `Real-Time UPI (${upiApp})`, upiApp, payerVpa, note);
   writeDb(db);
 
   res.json({
@@ -1663,7 +1709,7 @@ app.post('/api/rent/confirm-upi-payment', (req, res) => {
     invoice,
     npciRrn: cleanUtr,
     soundboxText: `Rupees ${invoice.totalAmount.toLocaleString('en-IN')} received on KirayaSetu UPI for ${profile?.registeredLegalName || profile?.name || 'Landlord'}`,
-    message: `Payment of ₹${invoice.totalAmount.toLocaleString('en-IN')} confirmed and credited to ${profile?.upi?.vpa}!`
+    message: `Payment of ₹${invoice.totalAmount.toLocaleString('en-IN')} confirmed and transferred to ${profile?.upi?.vpa}!`
   });
 });
 
@@ -1678,67 +1724,13 @@ app.post('/api/rent/pay', (req, res) => {
     return res.status(404).json({ success: false, message: 'Rent invoice not found' });
   }
 
-  const profile = db.landlordSettlementProfile || getVerifiedLandlordBankingProfile();
-  const now = new Date().toISOString();
   const bankCode = bankDetails?.bankCode || (paymentMethod.includes('SBI') ? 'SBI' : paymentMethod.includes('ICICI') ? 'ICIC' : paymentMethod.includes('Axis') ? 'AXIS' : 'HDFC');
   const genUtr = `UTR/${bankCode}/${Date.now().toString().slice(-8)}/${Math.floor(1000 + Math.random() * 9000)}`;
   const finalUtr = transactionRef || genUtr;
 
-  invoice.status = 'paid';
-  invoice.paidAt = now;
-  invoice.paymentMethod = paymentMethod;
-  invoice.transactionRef = finalUtr;
-  invoice.bankDetails = bankDetails || {
-    bankName: paymentMethod.includes('SBI') ? 'State Bank of India' : paymentMethod.includes('Axis') ? 'Axis Bank' : 'HDFC Bank',
-    accountNumber: '•••• 4092',
-    mode: 'Direct Bank Account (IMPS Real-Time Settlement)'
-  };
-  invoice.landlordSettlement = {
-    name: profile?.registeredLegalName || profile?.name || 'Rajesh Sharma',
-    bankName: profile?.bankAccount?.bankName || 'State Bank of India',
-    accountNumber: profile?.bankAccount?.accountNumber || '20394819287821',
-    maskedAccountNumber: profile?.bankAccount?.maskedAccountNumber || '•••• 7821',
-    ifsc: profile?.bankAccount?.ifsc || 'SBIN0000800',
-    branch: profile?.bankAccount?.branch || 'Main Branch',
-    upiId: profile?.upi?.vpa || 'rajesh.landlord@okhdfcbank',
-    pan: profile?.pan || 'ABCPS1234F'
-  };
-  invoice.landlordName = profile?.registeredLegalName || profile?.name || 'Rajesh Sharma';
-  invoice.landlordPan = profile?.pan || 'ABCPS1234F';
-  invoice.receiptNumber = `RCT-${invoice.billingMonth.replace(' ', '-').toUpperCase()}-${invoice.unitNumber.replace(/\D/g, '') || '01'}`;
-
-  // Notify Landlord in real time
-  const adminUser = db.users.find(u => u.role === 'admin');
-  if (adminUser) {
-    db.notifications.unshift({
-      id: `notif_${Date.now()}`,
-      userId: adminUser.id,
-      title: '🟢 Real-Time Rent Payment Received',
-      message: `${invoice.tenantName} paid rent of ₹${invoice.totalAmount.toLocaleString('en-IN')} for ${invoice.billingMonth} credited directly to your ${profile?.bankAccount?.bankName || 'Bank'} account (${profile?.bankAccount?.maskedAccountNumber || '•••• 7821'}). UTR: ${finalUtr}.`,
-      type: 'rent_paid',
-      severity: 'success',
-      read: false,
-      createdAt: now,
-      actionUrl: '/payments',
-      actionText: 'View in Calendar'
-    });
-  }
-
-  // Confirmation notification for Tenant
-  db.notifications.unshift({
-    id: `notif_${Date.now() + 1}`,
-    userId: invoice.tenantId,
-    title: 'Rent Payment Successful & Receipt Ready',
-    message: `₹${invoice.totalAmount.toLocaleString('en-IN')} transferred directly to Landlord ${profile?.registeredLegalName || profile?.name}'s ${profile?.bankAccount?.bankName || 'Bank'} account (${profile?.bankAccount?.maskedAccountNumber || '•••• 7821'}) for ${invoice.billingMonth}. UTR: ${finalUtr}. Official HRA receipt generated.`,
-    type: 'payment_success',
-    severity: 'success',
-    read: false,
-    createdAt: now,
-    actionUrl: '/payments',
-    actionText: 'Download HRA Receipt'
-  });
-
+  creditRentToLandlord(db, invoice, finalUtr, paymentMethod, null, null, null, bankDetails);
   writeDb(db);
+
   res.json({
     success: true,
     invoice,
@@ -1756,79 +1748,58 @@ app.post('/api/rent/simulate-upi-scan', (req, res) => {
     return res.status(404).json({ success: false, message: 'Invoice not found' });
   }
 
-  const profile = db.landlordSettlementProfile || getVerifiedLandlordBankingProfile();
   const npciRrn = String(Math.floor(400000000000 + Math.random() * 599999999999));
   const utrRef = `UPI/NPCI/${npciRrn}`;
-  const now = new Date().toISOString();
 
-  invoice.status = 'paid';
-  invoice.paidAt = now;
-  invoice.paymentMethod = `Instant UPI (${upiApp})`;
-  invoice.transactionRef = utrRef;
-  invoice.upiDetails = {
-    upiApp,
-    payerVpa: payerVpa || `${(invoice.tenantName || 'tenant').toLowerCase().replace(/\s+/g, '.')}@okhdfcbank`,
-    payeeVpa: profile?.upi?.vpa || 'rajesh.landlord@okhdfcbank',
-    payeeName: profile?.registeredLegalName || profile?.name || 'Rajesh Sharma',
+  const { profile } = creditRentToLandlord(db, invoice, utrRef, `Instant UPI (${upiApp})`, upiApp, payerVpa);
+  writeDb(db);
+
+  res.json({
+    success: true,
+    invoice,
     npciRrn,
-    settlementRail: 'NPCI UPI 2.0 Real-Time Switch',
-    status: 'CREDITED_TO_LANDLORD_BANK',
-    settlementBank: profile?.bankAccount?.bankName || 'State Bank of India'
-  };
-  invoice.landlordSettlement = {
-    name: profile?.registeredLegalName || profile?.name || 'Rajesh Sharma',
-    bankName: profile?.bankAccount?.bankName || 'State Bank of India',
-    accountNumber: profile?.bankAccount?.accountNumber || '20394819287821',
-    maskedAccountNumber: profile?.bankAccount?.maskedAccountNumber || '•••• 7821',
-    ifsc: profile?.bankAccount?.ifsc || 'SBIN0000800',
-    branch: profile?.bankAccount?.branch || 'Main Branch',
-    upiId: profile?.upi?.vpa || 'rajesh.landlord@okhdfcbank',
-    pan: profile?.pan || 'ABCPS1234F'
-  };
-  invoice.landlordName = profile?.registeredLegalName || profile?.name || 'Rajesh Sharma';
-  invoice.landlordPan = profile?.pan || 'ABCPS1234F';
-  invoice.receiptNumber = `RCT-${invoice.billingMonth.replace(' ', '-').toUpperCase()}-${invoice.unitNumber.replace(/\D/g, '') || '01'}`;
+    soundboxText: `₹${invoice.totalAmount.toLocaleString('en-IN')} received on KirayaSetu UPI for ${profile?.registeredLegalName || profile?.name || 'Rajesh Sharma'}`,
+    message: `Payment of ₹${invoice.totalAmount.toLocaleString('en-IN')} confirmed and credited to Landlord account in real time!`
+  });
+});
 
-  // Notify Landlord in real time
-  const adminUser = db.users.find(u => u.role === 'admin');
-  if (adminUser) {
-    db.notifications.unshift({
-      id: `notif_${Date.now()}`,
-      userId: adminUser.id,
-      title: '🟢 Real-Time UPI Payment Confirmed',
-      message: `₹${invoice.totalAmount.toLocaleString('en-IN')} received on UPI Soundbox from ${invoice.tenantName} for ${invoice.billingMonth} credited to your ${profile?.bankAccount?.bankName || 'Bank'} (${profile?.bankAccount?.maskedAccountNumber || '•••• 7821'}) via ${upiApp}. NPCI RRN: ${npciRrn}.`,
-      type: 'rent_paid',
-      severity: 'success',
-      read: false,
-      createdAt: now,
-      actionUrl: '/payments',
-      actionText: 'View in Calendar'
-    });
+// Real-Time Invoice Status Check (for QR scanning poll)
+app.get('/api/rent/invoice-status/:id', (req, res) => {
+  const db = readDb();
+  const invoice = db.rentInvoices.find(inv => inv.id === req.params.id);
+  if (!invoice) {
+    return res.status(404).json({ success: false, message: 'Invoice not found' });
+  }
+  res.json({
+    success: true,
+    status: invoice.status,
+    invoice
+  });
+});
+
+// Real-Time Webhook for External UPI Payment Gateways / Bharat QR
+app.post('/api/rent/webhook/upi-settlement', (req, res) => {
+  const db = readDb();
+  const { invoiceId, utr, amount, upiApp = 'UPI Gateway' } = req.body;
+
+  const invoice = db.rentInvoices.find(inv => inv.id === invoiceId);
+  if (!invoice) {
+    return res.status(404).json({ success: false, message: 'Invoice not found' });
   }
 
-  // Confirm to Tenant
-  db.notifications.unshift({
-    id: `notif_${Date.now() + 1}`,
-    userId: invoice.tenantId,
-    title: 'UPI Rent Payment Successful',
-    message: `Payment of ₹${invoice.totalAmount.toLocaleString('en-IN')} for ${invoice.billingMonth} credited to Landlord ${profile?.registeredLegalName || profile?.name} via ${upiApp}. NPCI RRN: ${npciRrn}. Official HRA receipt generated.`,
-    type: 'payment_success',
-    severity: 'success',
-    read: false,
-    createdAt: now,
-    actionUrl: '/payments',
-    actionText: 'Download HRA Receipt'
+  if (invoice.status === 'paid') {
+    return res.json({ success: true, message: 'Invoice already settled', invoice });
+  }
+
+  const rrn = utr || `UPI/NPCI/${Math.floor(400000000000 + Math.random() * 599999999999)}`;
+  creditRentToLandlord(db, invoice, rrn, `Instant UPI (${upiApp})`, upiApp);
+  writeDb(db);
+
+  res.json({
+    success: true,
+    invoice,
+    message: 'Settlement confirmed in real time'
   });
-
-writeDb(db);
-
-res.json({
-  success: true,
-  invoice,
-  npciRrn,
-  soundboxText: `₹${invoice.totalAmount.toLocaleString('en-IN')} received on KirayaSetu UPI for Rajesh Sharma`,
-  message: `Payment of ₹${invoice.totalAmount.toLocaleString('en-IN')} confirmed in real time by NPCI UPI Gateway!`
-});
 });
 
 // Admin broadcasts or sends rent due reminders to tenants
