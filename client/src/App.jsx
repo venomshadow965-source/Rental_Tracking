@@ -201,7 +201,44 @@ export default function App() {
     const res = await api.createAgreement(data);
     if (res.success) {
       setAgreements(prev => [res.agreement, ...prev]);
+      const [notifsRes, invsRes, unitsRes, propsRes] = await Promise.all([
+        api.getNotifications(),
+        api.getRentInvoices(),
+        api.getUnits(),
+        api.getProperties()
+      ]);
+      if (notifsRes.success) setNotifications(notifsRes.notifications);
+      if (invsRes.success) setInvoices(invsRes.invoices);
+      if (unitsRes.success) setUnits(unitsRes.units);
+      if (propsRes.success) setProperties(propsRes.properties);
+    }
+    return res;
+  };
+
+  // Action: Generate Rent Invoice
+  const handleGenerateRentInvoice = async (data) => {
+    const res = await api.generateRentInvoice(data);
+    if (res.success) {
+      setInvoices(prev => [res.invoice, ...prev]);
       const notifsRes = await api.getNotifications();
+      if (notifsRes.success) setNotifications(notifsRes.notifications);
+    }
+    return res;
+  };
+
+  // Action: Vacate Unit
+  const handleVacateUnit = async (unitId) => {
+    const res = await api.vacateUnit(unitId);
+    if (res.success) {
+      const [agrsRes, unitsRes, propsRes, notifsRes] = await Promise.all([
+        api.getAgreements(),
+        api.getUnits(),
+        api.getProperties(),
+        api.getNotifications()
+      ]);
+      if (agrsRes.success) setAgreements(agrsRes.agreements);
+      if (unitsRes.success) setUnits(unitsRes.units);
+      if (propsRes.success) setProperties(propsRes.properties);
       if (notifsRes.success) setNotifications(notifsRes.notifications);
     }
     return res;
@@ -507,6 +544,7 @@ export default function App() {
             }}
             onOpenMap={(prop) => setViewingMapProperty(prop)}
             onOpenEditLocation={(prop) => setEditingLocationProperty(prop)}
+            onVacateUnit={handleVacateUnit}
           />
         )}
 
@@ -516,6 +554,9 @@ export default function App() {
             currentUser={currentUser}
             users={users}
             properties={properties}
+            invoices={invoices}
+            onOpenPayRent={(inv) => setPayingInvoice(inv)}
+            onVacateUnit={handleVacateUnit}
             onOpenCreateAgreement={(tenantId = null) => {
               if (!isAdmin) {
                 alert('Access Denied: Only Landlord Administrator can create rental agreements.');
@@ -533,9 +574,12 @@ export default function App() {
           <PaymentsPage
             invoices={invoices}
             currentUser={currentUser}
+            users={users}
+            units={units}
             onOpenPayRent={(inv) => setPayingInvoice(inv)}
             onOpenHraReceipt={(inv) => setViewingHraReceipt(inv)}
             onSendRentReminders={handleSendRentReminders}
+            onGenerateRentInvoice={handleGenerateRentInvoice}
           />
         )}
 
@@ -608,6 +652,7 @@ export default function App() {
           units={units}
           users={users}
           currentUser={currentUser}
+          agreements={agreements}
           initialTenantId={targetTenantForAgreement}
           onClose={() => {
             setShowCreateAgreement(false);

@@ -31,16 +31,20 @@ import {
   X,
   QrCode,
   Edit3,
-  Settings
+  Settings,
+  Plus
 } from 'lucide-react';
 import { api } from '../services/api';
 
 export default function PaymentsPage({
   invoices = [],
   currentUser,
+  users = [],
+  units = [],
   onOpenPayRent,
   onOpenHraReceipt,
-  onSendRentReminders
+  onSendRentReminders,
+  onGenerateRentInvoice
 }) {
   const isAdmin = currentUser?.role === 'admin';
 
@@ -55,6 +59,18 @@ export default function PaymentsPage({
   const [sendingReminders, setSendingReminders] = useState(false);
   const [reminderMessage, setReminderMessage] = useState('');
   const [copiedUtr, setCopiedUtr] = useState('');
+
+  // Generate Rent Invoice Modal State (for Landlords)
+  const [showGenerateInvoiceModal, setShowGenerateInvoiceModal] = useState(false);
+  const [genTenantId, setGenTenantId] = useState('');
+  const [genMonth, setGenMonth] = useState('November 2026');
+  const [genMonthKey, setGenMonthKey] = useState('2026-11');
+  const [genRent, setGenRent] = useState(20000);
+  const [genMaint, setGenMaint] = useState(2000);
+  const [genDueDate, setGenDueDate] = useState('2026-11-20');
+  const [generatingInv, setGeneratingInv] = useState(false);
+  const [genSuccessMsg, setGenSuccessMsg] = useState('');
+  const [genErrorMsg, setGenErrorMsg] = useState('');
 
   // Yearly & Calendar History States
   const [selectedYear, setSelectedYear] = useState(2026);
@@ -173,6 +189,43 @@ export default function PaymentsPage({
       setProfileErrorMsg(err.message || 'Network error while saving details.');
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const handleGenerateInvoiceSubmit = async (e) => {
+    e.preventDefault();
+    setGenErrorMsg('');
+    setGenSuccessMsg('');
+
+    if (!genTenantId) {
+      setGenErrorMsg('Please select a tenant.');
+      return;
+    }
+
+    setGeneratingInv(true);
+    try {
+      const res = await onGenerateRentInvoice({
+        tenantId: genTenantId,
+        billingMonth: genMonth,
+        billingMonthKey: genMonthKey,
+        baseRent: Number(genRent),
+        maintenanceCharges: Number(genMaint),
+        dueDate: genDueDate
+      });
+
+      if (res?.success) {
+        setGenSuccessMsg('✅ Rent bill generated successfully! The tenant can now pay immediately.');
+        setTimeout(() => {
+          setShowGenerateInvoiceModal(false);
+          setGenSuccessMsg('');
+        }, 1500);
+      } else {
+        setGenErrorMsg(res?.message || 'Failed to generate rent invoice.');
+      }
+    } catch (err) {
+      setGenErrorMsg(err.message || 'Error creating rent bill.');
+    } finally {
+      setGeneratingInv(false);
     }
   };
 
@@ -442,18 +495,71 @@ export default function PaymentsPage({
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setShowLandlordAuditModal(true);
-                setIsEditingLandlordProfile(false);
-              }}
-              className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs transition-all flex items-center space-x-2 whitespace-nowrap self-start md:self-auto shadow-md cursor-pointer"
-            >
-              <Settings className="w-4 h-4 text-slate-900" />
-              <span>Manage Real Bank & UPI Account ⚙️</span>
-            </button>
+            <div className="flex items-center space-x-2 self-start md:self-auto">
+              {isAdmin && onGenerateRentInvoice && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const firstTenant = (users || []).find(u => u.role === 'tenant');
+                    if (firstTenant) {
+                      setGenTenantId(firstTenant.id);
+                      setGenRent(firstTenant.monthlyRent || 20000);
+                      setGenMaint(firstTenant.maintenance || 2000);
+                    }
+                    setShowGenerateInvoiceModal(true);
+                  }}
+                  className="px-4 py-2.5 bg-white text-emerald-950 font-black rounded-xl text-xs hover:bg-emerald-50 transition-all flex items-center space-x-1.5 shadow-md cursor-pointer"
+                >
+                  <Plus className="w-4 h-4 text-emerald-700" />
+                  <span>+ Generate Rent Bill</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLandlordAuditModal(true);
+                  setIsEditingLandlordProfile(false);
+                }}
+                className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs transition-all flex items-center space-x-2 whitespace-nowrap shadow-md cursor-pointer"
+              >
+                <Settings className="w-4 h-4 text-slate-900" />
+                <span>Real Bank & UPI ⚙️</span>
+              </button>
+            </div>
           </div>
+
+          {/* URGENT TENANT ACTION BANNER FOR UNPAID RENT */}
+          {!isAdmin && (() => {
+            const unpaidInv = invoices.find(inv => inv.status === 'unpaid');
+            if (!unpaidInv) return null;
+            return (
+              <div className="p-4 bg-gradient-to-r from-amber-600 via-rose-600 to-emerald-700 text-white rounded-2xl shadow-lg border border-amber-400/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2.5 bg-white/20 rounded-xl">
+                    <Zap className="w-5 h-5 text-amber-300 animate-pulse fill-current" />
+                  </div>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-black text-sm">Rent Payment Pending: {unpaidInv.billingMonth}</span>
+                      <span className="text-[10px] bg-white/20 font-mono px-2 py-0.5 rounded-full uppercase">Action Required</span>
+                    </div>
+                    <p className="text-xs text-amber-100 mt-0.5">
+                      ₹{unpaidInv.totalAmount?.toLocaleString('en-IN')} due for {unpaidInv.unitNumber} ({unpaidInv.propertyName}) by {unpaidInv.dueDate}.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onOpenPayRent(unpaidInv)}
+                  className="px-5 py-2.5 bg-white text-rose-700 hover:bg-rose-50 font-black rounded-xl text-xs shadow-md transition-all flex items-center justify-center space-x-2 flex-shrink-0 cursor-pointer"
+                >
+                  <Landmark className="w-4 h-4 text-rose-700" />
+                  <span>⚡ Pay Rent via UPI or Bank Debit</span>
+                </button>
+              </div>
+            );
+          })()}
           
           {/* Key Metrics KPI Cards for Current Month */}
           {isAdmin && (
@@ -701,10 +807,10 @@ export default function PaymentsPage({
                             <button
                               type="button"
                               onClick={() => onOpenPayRent(invoice)}
-                              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-md shadow-emerald-600/20 flex items-center space-x-1.5 transition-all"
+                              className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black rounded-xl text-xs shadow-md shadow-emerald-600/30 flex items-center space-x-1.5 transition-all cursor-pointer"
                             >
-                              <Landmark className="w-3.5 h-3.5" />
-                              <span>Pay from Linked Bank A/c</span>
+                              <Zap className="w-3.5 h-3.5 text-amber-300 fill-current" />
+                              <span>{isAdmin ? 'Record / Pay Rent ⚡' : 'Pay Rent Now ⚡'}</span>
                             </button>
                           ) : (
                             <button
@@ -1092,6 +1198,174 @@ export default function PaymentsPage({
             </div>
           </div>
 
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* AUDIT MODAL: LANDLORD BANKING & UPI VERIFICATION CERTIFICATE              */}
+      {/* ========================================================================= */}
+      {/* ========================================================================= */}
+      {/* MODAL: GENERATE RENT INVOICE FOR NEWLY ADDED OR EXISTING TENANTS          */}
+      {/* ========================================================================= */}
+      {showGenerateInvoiceModal && (
+        <div className="fixed inset-0 z-60 bg-slate-900/70 backdrop-blur-sm flex justify-center items-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden space-y-4">
+            
+            <div className="flex items-center justify-between px-6 py-4 bg-emerald-800 text-white">
+              <div className="flex items-center space-x-2.5">
+                <Plus className="w-6 h-6 text-emerald-300" />
+                <div>
+                  <h4 className="font-extrabold text-sm">Generate Rent Invoice</h4>
+                  <p className="text-[11px] text-emerald-200">Create rent bill for newly added or existing tenant</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowGenerateInvoiceModal(false)}
+                className="p-1 rounded-lg hover:bg-emerald-700 text-emerald-200 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleGenerateInvoiceSubmit} className="p-6 space-y-4 text-xs">
+              
+              {genSuccessMsg && (
+                <div className="p-3 bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-xl font-bold flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-700 flex-shrink-0" />
+                  <span>{genSuccessMsg}</span>
+                </div>
+              )}
+              {genErrorMsg && (
+                <div className="p-3 bg-rose-100 border border-rose-300 text-rose-900 rounded-xl font-bold flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 text-rose-700 flex-shrink-0" />
+                  <span>{genErrorMsg}</span>
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                  Select Tenant *
+                </label>
+                <select
+                  required
+                  value={genTenantId}
+                  onChange={(e) => {
+                    const tid = e.target.value;
+                    setGenTenantId(tid);
+                    const t = (users || []).find(u => u.id === tid);
+                    if (t) {
+                      setGenRent(t.monthlyRent || 20000);
+                      setGenMaint(t.maintenance || 2000);
+                    }
+                  }}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-hidden"
+                >
+                  <option value="">-- Choose Tenant --</option>
+                  {(users || []).filter(u => u.role === 'tenant').map(t => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.unitNumber || 'No unit assigned'}) - {t.phone}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    Billing Month *
+                  </label>
+                  <select
+                    value={genMonth}
+                    onChange={(e) => {
+                      setGenMonth(e.target.value);
+                      const key = e.target.value.toLowerCase().includes('nov') ? '2026-11' : e.target.value.toLowerCase().includes('dec') ? '2026-12' : '2026-11';
+                      setGenMonthKey(key);
+                    }}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-hidden"
+                  >
+                    <option value="November 2026">November 2026</option>
+                    <option value="December 2026">December 2026</option>
+                    <option value="October 2026">October 2026</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    Due Date *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={genDueDate}
+                    onChange={(e) => setGenDueDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    Base Rent (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={genRent}
+                    onChange={(e) => setGenRent(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-hidden"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    Maintenance (₹)
+                  </label>
+                  <input
+                    type="number"
+                    value={genMaint}
+                    onChange={(e) => setGenMaint(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold focus:bg-white focus:ring-1 focus:ring-emerald-500 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
+                <span className="font-bold text-slate-700">Total Bill Amount:</span>
+                <span className="text-sm font-black font-mono text-emerald-800">
+                  ₹{(Number(genRent) + Number(genMaint)).toLocaleString('en-IN')}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-end space-x-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowGenerateInvoiceModal(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={generatingInv}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-all shadow-md shadow-emerald-600/30 flex items-center space-x-1.5 disabled:opacity-50 cursor-pointer"
+                >
+                  {generatingInv ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Generating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Generate & Issue Bill</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+            </form>
+          </div>
         </div>
       )}
 

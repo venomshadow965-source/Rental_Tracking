@@ -10,7 +10,8 @@ import {
   Zap, 
   Droplets,
   HelpCircle,
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 
 export default function CreateAgreementModal({ 
@@ -20,15 +21,42 @@ export default function CreateAgreementModal({
   units, 
   users,
   currentUser,
+  agreements = [],
   initialTenantId = null
 }) {
   const tenants = users.filter(u => u.role === 'tenant');
   const adminUser = users.find(u => u.role === 'admin');
 
+  // Filter out occupied units or units with an active agreement until they become vacant
+  const activeAgreementUnitIds = new Set(
+    (agreements || [])
+      .filter(a => a.status !== 'terminated' && a.status !== 'expired' && a.status !== 'cancelled')
+      .map(a => a.unitId)
+      .filter(Boolean)
+  );
+
   // If a specific tenant was requested (e.g. from registration notification), preselect them
   const targetTenant = (initialTenantId && tenants.find(t => t.id === initialTenantId)) || tenants[0];
-  const initialUnitId = targetTenant?.assignedUnitId || units[0]?.id || '';
-  const initialUnit = units.find(u => u.id === initialUnitId) || units[0];
+
+  const availableUnits = (units || []).filter(u => {
+    const hasActiveAgreement = activeAgreementUnitIds.has(u.id);
+    const isOccupiedByAnother = (u.status === 'occupied' || hasActiveAgreement) && 
+      u.tenantId && u.tenantId !== targetTenant?.id;
+    const isAssignedToThisTenant = targetTenant && (u.tenantId === targetTenant.id || targetTenant.assignedUnitId === u.id);
+
+    if (hasActiveAgreement && !isAssignedToThisTenant) {
+      return false; // Already has an active agreement! Do not show until vacant.
+    }
+    if (u.status === 'occupied' && !isAssignedToThisTenant) {
+      return false; // Already occupied! Do not show until vacant.
+    }
+    return true;
+  });
+
+  const initialUnitId = (targetTenant?.assignedUnitId && availableUnits.some(u => u.id === targetTenant.assignedUnitId))
+    ? targetTenant.assignedUnitId 
+    : (availableUnits[0]?.id || '');
+  const initialUnit = availableUnits.find(u => u.id === initialUnitId) || availableUnits[0];
 
   // Form State
   const [selectedTenantId, setSelectedTenantId] = useState(targetTenant?.id || '');
@@ -122,6 +150,10 @@ export default function CreateAgreementModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!availableUnits || availableUnits.length === 0) {
+      setError('No vacant units are available. Occupied units cannot have a new agreement made until vacated.');
+      return;
+    }
     if (!tenantName || !tenantAadhaar || !monthlyRent || !securityDeposit) {
       setError('Please fill all mandatory fields: Tenant Name, Aadhaar, Monthly Rent, and Security Deposit.');
       return;
@@ -136,7 +168,7 @@ export default function CreateAgreementModal({
     setLoading(true);
     setError('');
 
-    const targetUnit = units.find(u => u.id === selectedUnitId) || units[0];
+    const targetUnit = availableUnits.find(u => u.id === selectedUnitId) || availableUnits[0];
 
     const agreementPayload = {
       propertyId: targetUnit?.propertyId || 'prop_1',
@@ -259,20 +291,33 @@ export default function CreateAgreementModal({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Select Property Unit
+                <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                  <span>Select Property Unit</span>
+                  <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    {availableUnits.length} Vacant & Available
+                  </span>
                 </label>
-                <select
-                  value={selectedUnitId}
-                  onChange={(e) => handleUnitChange(e.target.value)}
-                  className="w-full text-xs font-medium py-2 px-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
-                >
-                  {units.map(u => (
-                    <option key={u.id} value={u.id}>
-                      {u.propertyName} - {u.number} ({u.type}) - ₹{u.rent?.toLocaleString('en-IN')}/mo
-                    </option>
-                  ))}
-                </select>
+                {availableUnits.length === 0 ? (
+                  <div className="p-3 bg-amber-50 border border-amber-300 rounded-lg text-amber-900 text-xs flex items-start space-x-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="block font-bold">No Vacant Units Available</strong>
+                      All property units currently have active rental agreements or are occupied. Occupied units cannot be re-rented until the current tenant vacates.
+                    </div>
+                  </div>
+                ) : (
+                  <select
+                    value={selectedUnitId}
+                    onChange={(e) => handleUnitChange(e.target.value)}
+                    className="w-full text-xs font-medium py-2 px-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
+                  >
+                    {availableUnits.map(u => (
+                      <option key={u.id} value={u.id}>
+                        {u.propertyName} - {u.number} ({u.type}) - ₹{u.rent?.toLocaleString('en-IN')}/mo
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
           </div>

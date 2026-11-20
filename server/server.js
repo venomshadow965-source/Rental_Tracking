@@ -249,6 +249,59 @@ app.post('/api/auth/register', (req, res) => {
         aadhaar: newUser.aadhaar
       });
     });
+
+    // Auto-generate initial rent invoice so newly registered tenant can pay rent immediately
+    const billingMonth = 'November 2026';
+    const billingMonthKey = '2026-11';
+    const rentAmt = Number(newUser.monthlyRent) || 20000;
+    const maintAmt = Number(newUser.maintenance) || 2000;
+    const totalAmt = rentAmt + maintAmt;
+    const dueDate = '2026-11-20';
+
+    if (!db.rentInvoices) db.rentInvoices = [];
+    const existingInv = db.rentInvoices.find(inv => inv.tenantId === newUser.id && inv.billingMonthKey === billingMonthKey);
+    if (!existingInv) {
+      db.rentInvoices.unshift({
+        id: `inv_${billingMonthKey.replace('-', '_')}_${newUser.id}`,
+        invoiceNumber: `RENT/2026/11/${newUser.unitNumber?.replace(/\D/g, '') || '01'}`,
+        propertyId: newUser.propertyId,
+        propertyName: newUser.propertyName,
+        landlordId: targetLandlordId || 'usr_admin',
+        landlordName: assignedProp?.landlordName || 'Rajesh Sharma',
+        landlordPan: 'ABCPS1234F',
+        tenantId: newUser.id,
+        tenantName: newUser.name,
+        tenantPhone: newUser.phone,
+        unitId: newUser.assignedUnitId,
+        unitNumber: newUser.unitNumber,
+        billingMonth,
+        billingMonthKey,
+        baseRent: rentAmt,
+        maintenanceCharges: maintAmt,
+        waterElectricityAddon: 0,
+        lateFee: 0,
+        totalAmount: totalAmt,
+        issueDate: new Date().toISOString().split('T')[0],
+        dueDate,
+        status: 'unpaid',
+        paidAt: null,
+        paymentMethod: null
+      });
+
+      // Notify new tenant about pending rent invoice
+      db.notifications.unshift({
+        id: `notif_${Date.now()}_rent_due`,
+        userId: newUser.id,
+        title: `Rent Due for ${billingMonth}: ₹${totalAmt.toLocaleString('en-IN')}`,
+        message: `Welcome ${newUser.name}! Your rent bill of ₹${totalAmt.toLocaleString('en-IN')} for ${newUser.unitNumber} (${billingMonth}) is ready. Click to pay conveniently via UPI or Linked Bank Debit.`,
+        type: 'rent_due',
+        severity: 'warning',
+        read: false,
+        createdAt: new Date().toISOString(),
+        actionUrl: '/payments',
+        actionText: 'Pay Rent Now'
+      });
+    }
   }
 
   writeDb(db);
@@ -658,6 +711,21 @@ app.post('/api/agreements', (req, res) => {
     ? `${unit.number}, ${unit.floor}, ${prop.name}, ${prop.address}, ${prop.city}, ${prop.state} - ${prop.pincode}`
     : 'Full Property Address';
 
+  // Check if unit already has an active agreement with another tenant
+  const existingActiveAgr = (db.agreements || []).find(a => 
+    a.unitId === unitId && 
+    a.status !== 'terminated' && 
+    a.status !== 'expired' && 
+    a.status !== 'cancelled' &&
+    a.tenantId !== tenantId
+  );
+  if (existingActiveAgr) {
+    return res.status(400).json({
+      success: false,
+      message: `Unit ${unitNumber} in ${propertyName} already has an active agreement (${existingActiveAgr.agreementNumber}) with ${existingActiveAgr.tenantName}. It cannot be rented out until vacated.`
+    });
+  }
+
   const newAgreement = {
     id: `agr_${Date.now()}`,
     landlordId: currentUser ? currentUser.id : 'usr_admin',
@@ -722,6 +790,80 @@ app.post('/api/agreements', (req, res) => {
 
   db.agreements.unshift(newAgreement);
 
+  // Mark unit as occupied
+  if (unit) {
+    unit.status = 'occupied';
+    unit.tenantId = tenantId;
+    unit.tenantName = tenantName;
+    unit.agreementId = newAgreement.id;
+  }
+
+  // Update tenant user record
+  const tenantUser = db.users.find(u => u.id === tenantId);
+  if (tenantUser) {
+    tenantUser.assignedUnitId = unitId;
+    tenantUser.propertyId = propertyId;
+    tenantUser.unitNumber = unitNumber;
+    tenantUser.propertyName = propertyName;
+    tenantUser.monthlyRent = Number(monthlyRent);
+    tenantUser.securityDeposit = Number(securityDeposit);
+    tenantUser.maintenance = Number(maintenanceCharges);
+  }
+
+  // Auto-generate initial rent invoice for newly agreed tenant
+  const billingMonth = 'November 2026';
+  const billingMonthKey = '2026-11';
+  const rentAmt = Number(monthlyRent) || 20000;
+  const maintAmt = Number(maintenanceCharges) || 0;
+  const totalAmt = rentAmt + maintAmt;
+  const dueDate = '2026-11-20';
+
+  if (!db.rentInvoices) db.rentInvoices = [];
+  const existingInv = db.rentInvoices.find(inv => inv.tenantId === tenantId && inv.billingMonthKey === billingMonthKey);
+  if (!existingInv) {
+    db.rentInvoices.unshift({
+      id: `inv_${billingMonthKey.replace('-', '_')}_${tenantId || Date.now()}`,
+      invoiceNumber: `RENT/2026/11/${unitNumber?.replace(/\D/g, '') || '01'}`,
+      propertyId,
+      propertyName,
+      landlordId: currentUser ? currentUser.id : 'usr_admin',
+      landlordName: landlordName || (currentUser ? currentUser.name : 'Rajesh Sharma'),
+      landlordPan: landlordPan || 'ABCPS1234F',
+      tenantId,
+      tenantName,
+      tenantPhone: tenantPhone || '',
+      unitId,
+      unitNumber,
+      billingMonth,
+      billingMonthKey,
+      baseRent: rentAmt,
+      maintenanceCharges: maintAmt,
+      waterElectricityAddon: 0,
+      lateFee: 0,
+      totalAmount: totalAmt,
+      issueDate: new Date().toISOString().split('T')[0],
+      dueDate,
+      status: 'unpaid',
+      paidAt: null,
+      paymentMethod: null
+    });
+
+    if (tenantId) {
+      db.notifications.unshift({
+        id: `notif_${Date.now()}_rent_bill`,
+        userId: tenantId,
+        title: `Rent Invoice Ready: ${billingMonth}`,
+        message: `Your rent bill of ₹${totalAmt.toLocaleString('en-IN')} for ${unitNumber} is generated. Pay conveniently via UPI or Linked Bank Account.`,
+        type: 'rent_due',
+        severity: 'info',
+        read: false,
+        createdAt: new Date().toISOString(),
+        actionUrl: '/payments',
+        actionText: 'Pay Rent Now'
+      });
+    }
+  }
+
   // Send notification to tenant
   if (tenantId) {
     db.notifications.unshift({
@@ -741,6 +883,170 @@ app.post('/api/agreements', (req, res) => {
   writeDb(db);
   res.status(201).json({ success: true, agreement: newAgreement });
 });
+
+// Endpoint: Mark Unit as Vacant (Release unit for new agreements)
+app.post('/api/units/:id/vacate', (req, res) => {
+  const db = readDb();
+  const unitId = req.params.id;
+  
+  let targetUnit = null;
+  let targetProp = null;
+  db.properties.forEach(p => {
+    const u = (p.units || []).find(un => un.id === unitId);
+    if (u) {
+      targetUnit = u;
+      targetProp = p;
+      u.status = 'vacant';
+      u.tenantId = null;
+      u.tenantName = null;
+      u.agreementId = null;
+    }
+  });
+
+  if (!targetUnit) {
+    return res.status(404).json({ success: false, message: 'Unit not found' });
+  }
+
+  // Terminate any active agreement on this unit
+  if (db.agreements) {
+    db.agreements.forEach(agr => {
+      if (agr.unitId === unitId && agr.status !== 'terminated' && agr.status !== 'expired') {
+        agr.status = 'terminated';
+        agr.terminatedAt = new Date().toISOString();
+      }
+    });
+  }
+
+  writeDb(db);
+  res.json({
+    success: true,
+    message: `Unit ${targetUnit.number} in ${targetProp?.name || 'Property'} is now marked VACANT and available for new agreements!`,
+    unit: targetUnit
+  });
+});
+
+// Endpoint: Terminate an Agreement & Vacate Unit
+app.post('/api/agreements/:id/terminate', (req, res) => {
+  const db = readDb();
+  const agreement = (db.agreements || []).find(a => a.id === req.params.id);
+  if (!agreement) {
+    return res.status(404).json({ success: false, message: 'Agreement not found' });
+  }
+
+  agreement.status = 'terminated';
+  agreement.terminatedAt = new Date().toISOString();
+
+  // Mark the unit vacant
+  if (agreement.unitId) {
+    db.properties.forEach(p => {
+      const u = (p.units || []).find(un => un.id === agreement.unitId);
+      if (u) {
+        u.status = 'vacant';
+        u.tenantId = null;
+        u.tenantName = null;
+        u.agreementId = null;
+      }
+    });
+  }
+
+  writeDb(db);
+  res.json({
+    success: true,
+    message: `Agreement ${agreement.agreementNumber} terminated and unit ${agreement.unitNumber} is now VACANT!`,
+    agreement
+  });
+});
+
+// Endpoint: Manually Generate / Bill Rent Invoice for Tenant
+app.post('/api/rent/invoices/generate', (req, res) => {
+  const db = readDb();
+  const {
+    tenantId,
+    unitId,
+    billingMonth = 'November 2026',
+    billingMonthKey = '2026-11',
+    baseRent,
+    maintenanceCharges = 0,
+    dueDate = '2026-11-20'
+  } = req.body;
+
+  const tenant = db.users.find(u => u.id === tenantId);
+  if (!tenant) {
+    return res.status(404).json({ success: false, message: 'Tenant not found' });
+  }
+
+  let prop = db.properties.find(p => p.id === tenant.propertyId);
+  let unit = null;
+  if (prop) {
+    unit = (prop.units || []).find(u => u.id === (unitId || tenant.assignedUnitId));
+  } else {
+    db.properties.forEach(p => {
+      const u = (p.units || []).find(un => un.id === (unitId || tenant.assignedUnitId));
+      if (u) {
+        prop = p;
+        unit = u;
+      }
+    });
+  }
+
+  const rentAmt = Number(baseRent) || Number(tenant.monthlyRent) || Number(unit?.rent) || 20000;
+  const maintAmt = Number(maintenanceCharges) || Number(tenant.maintenance) || Number(unit?.maintenance) || 0;
+  const totalAmt = rentAmt + maintAmt;
+  const unitNum = unit ? unit.number : (tenant.unitNumber || 'Unit');
+
+  if (!db.rentInvoices) db.rentInvoices = [];
+
+  const invoice = {
+    id: `inv_${billingMonthKey.replace('-', '_')}_${tenant.id}_${Date.now().toString().slice(-4)}`,
+    invoiceNumber: `RENT/${billingMonthKey.replace('-', '/')}/${unitNum.replace(/\D/g, '') || '01'}-${Math.floor(10 + Math.random() * 90)}`,
+    propertyId: prop ? prop.id : 'prop_1',
+    propertyName: prop ? prop.name : 'Palm Heights Apartments',
+    landlordId: prop?.landlordId || 'usr_admin',
+    landlordName: prop?.landlordName || 'Rajesh Sharma',
+    landlordPan: 'ABCPS1234F',
+    tenantId: tenant.id,
+    tenantName: tenant.name,
+    tenantPhone: tenant.phone || '',
+    unitId: unit ? unit.id : (tenant.assignedUnitId || 'unit_302'),
+    unitNumber: unitNum,
+    billingMonth,
+    billingMonthKey,
+    baseRent: rentAmt,
+    maintenanceCharges: maintAmt,
+    waterElectricityAddon: 0,
+    lateFee: 0,
+    totalAmount: totalAmt,
+    issueDate: new Date().toISOString().split('T')[0],
+    dueDate,
+    status: 'unpaid',
+    paidAt: null,
+    paymentMethod: null
+  };
+
+  db.rentInvoices.unshift(invoice);
+
+  // Notify tenant
+  db.notifications.unshift({
+    id: `notif_${Date.now()}_rent_bill`,
+    userId: tenant.id,
+    title: `New Rent Invoice: ₹${totalAmt.toLocaleString('en-IN')}`,
+    message: `A rent bill of ₹${totalAmt.toLocaleString('en-IN')} for ${unitNum} (${billingMonth}) has been generated. Due by ${dueDate}.`,
+    type: 'rent_due',
+    severity: 'warning',
+    read: false,
+    createdAt: new Date().toISOString(),
+    actionUrl: '/payments',
+    actionText: 'Pay Rent Now'
+  });
+
+  writeDb(db);
+  res.status(201).json({
+    success: true,
+    invoice,
+    message: `Rent invoice of ₹${totalAmt.toLocaleString('en-IN')} for ${tenant.name} generated successfully!`
+  });
+});
+
 
 // Digital signature endpoint (Tenant or Landlord signs)
 app.post('/api/agreements/:id/sign', (req, res) => {

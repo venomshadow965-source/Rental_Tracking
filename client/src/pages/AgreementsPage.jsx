@@ -10,21 +10,25 @@ import {
   Printer, 
   Building, 
   User, 
-  CreditCard,
-  Fingerprint,
-  UserCheck,
-  ArrowRight,
-  MapPin
+  CreditCard, 
+  Fingerprint, 
+  UserCheck, 
+  ArrowRight, 
+  MapPin,
+  Zap
 } from 'lucide-react';
 
 export default function AgreementsPage({
-  agreements,
+  agreements = [],
   currentUser,
   users = [],
   properties = [],
+  invoices = [],
   onOpenCreateAgreement,
   onOpenAgreementViewer,
-  onOpenMap
+  onOpenMap,
+  onOpenPayRent,
+  onVacateUnit
 }) {
   const isAdmin = currentUser?.role === 'admin';
   const [filter, setFilter] = useState('all'); // all, executed, sent_to_tenant
@@ -117,6 +121,38 @@ export default function AgreementsPage({
                     <div className="text-xs font-mono text-slate-600 space-y-0.5 pt-1.5 border-t border-slate-200/80">
                       <div>Aadhaar: <span className="font-bold text-emerald-900">{tenant.aadhaar}</span></div>
                       <div>Phone: {tenant.phone}</div>
+                      {(() => {
+                        const unpaidInv = (invoices || []).find(inv => inv.tenantId === tenant.id && inv.status === 'unpaid');
+                        if (unpaidInv) {
+                          return (
+                            <div className="flex items-center justify-between pt-1">
+                              <span className="text-[10px] text-rose-700 font-bold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                                ⚠️ Rent Unpaid: ₹{unpaidInv.totalAmount?.toLocaleString('en-IN')}
+                              </span>
+                              {onOpenPayRent && (
+                                <button
+                                  type="button"
+                                  onClick={() => onOpenPayRent(unpaidInv)}
+                                  className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 flex items-center space-x-1"
+                                >
+                                  <Zap className="w-3 h-3 text-amber-500 fill-current" />
+                                  <span>Pay Rent ⚡</span>
+                                </button>
+                              )}
+                            </div>
+                          );
+                        }
+                        const paidInv = (invoices || []).find(inv => inv.tenantId === tenant.id && inv.status === 'paid');
+                        if (paidInv) {
+                          return (
+                            <div className="text-[10px] text-emerald-700 font-bold flex items-center space-x-1 pt-1">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              <span>Rent Paid (November 2026)</span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
                   </div>
 
@@ -308,10 +344,44 @@ export default function AgreementsPage({
                       <span>Map</span>
                     </button>
                   )}
+                  {/* Pay Rent if Unpaid */}
+                  {(() => {
+                    const unpaidInv = (invoices || []).find(inv => inv.tenantId === agreement.tenantId && inv.status === 'unpaid');
+                    if (unpaidInv && onOpenPayRent) {
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => onOpenPayRent(unpaidInv)}
+                          className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white rounded-lg text-xs font-bold shadow-md flex items-center space-x-1 cursor-pointer"
+                        >
+                          <Zap className="w-3.5 h-3.5 text-amber-200 fill-current" />
+                          <span>Pay Rent (₹{unpaidInv.totalAmount?.toLocaleString('en-IN')}) ⚡</span>
+                        </button>
+                      );
+                    }
+                    return null;
+                  })()}
+
+                  {/* Mark Vacant Button for Landlord */}
+                  {isAdmin && onVacateUnit && agreement.status !== 'terminated' && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (window.confirm(`Are you sure you want to mark ${agreement.unitNumber} as VACANT and end this agreement? The unit will become available for new agreements.`)) {
+                          await onVacateUnit(agreement.unitId);
+                        }
+                      }}
+                      className="px-2.5 py-1.5 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 rounded-lg text-xs font-semibold flex items-center space-x-1 border border-slate-200 transition-colors cursor-pointer"
+                      title="Release and vacate unit for new agreements"
+                    >
+                      <span>Mark Vacant</span>
+                    </button>
+                  )}
+
                   {isPendingTenant && (
                     <button
                       onClick={() => onOpenAgreementViewer(agreement)}
-                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-md shadow-emerald-600/20 flex items-center space-x-1"
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-md shadow-emerald-600/20 flex items-center space-x-1 cursor-pointer"
                     >
                       <Fingerprint className="w-3.5 h-3.5" />
                       <span>Sign Now</span>
@@ -319,7 +389,7 @@ export default function AgreementsPage({
                   )}
                   <button
                     onClick={() => onOpenAgreementViewer(agreement)}
-                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold flex items-center space-x-1"
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold flex items-center space-x-1 cursor-pointer"
                   >
                     <Eye className="w-3.5 h-3.5" />
                     <span>View Legal Document</span>

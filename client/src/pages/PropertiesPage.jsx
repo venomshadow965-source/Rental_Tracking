@@ -34,7 +34,8 @@ export default function PropertiesPage({
   onOpenCreateAgreement,
   onOpenMap,
   onOpenRegisterMeter,
-  onOpenEditLocation
+  onOpenEditLocation,
+  onVacateUnit
 }) {
   const isAdmin = currentUser?.role === 'admin';
   // Filter strictly to current landlord's properties (exclude other landlords)
@@ -596,12 +597,28 @@ export default function PropertiesPage({
                           )}
                         </div>
 
+                        {isOccupied && isAdmin && onVacateUnit && (
+                          <div className="pt-2 border-t border-slate-200 flex items-center justify-end">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (window.confirm(`Are you sure you want to mark Unit ${unit.number} as VACANT? This will end active agreements and allow new agreements to be created for this unit.`)) {
+                                  await onVacateUnit(unit.id);
+                                }
+                              }}
+                              className="w-full py-1.5 bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 font-bold rounded-lg text-xs transition-colors flex items-center justify-center space-x-1 border border-slate-200 cursor-pointer"
+                            >
+                              <span>Mark as Vacant / End Tenancy</span>
+                            </button>
+                          </div>
+                        )}
+
                         {!isOccupied && isAdmin && (
                           <div className="pt-2 border-t border-emerald-200/60 flex items-center justify-end">
                             <button
                               type="button"
                               onClick={() => onOpenCreateAgreement && onOpenCreateAgreement()}
-                              className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition-colors flex items-center justify-center space-x-1 shadow-2xs"
+                              className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition-colors flex items-center justify-center space-x-1 shadow-2xs cursor-pointer"
                             >
                               <FileText className="w-3.5 h-3.5" />
                               <span>Make Agreement for this Unit</span>

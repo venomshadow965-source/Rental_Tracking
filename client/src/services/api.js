@@ -133,6 +133,22 @@ export const api = {
     return res.json();
   },
 
+  async terminateAgreement(id) {
+    const res = await fetch(`${API_BASE}/agreements/${id}/terminate`, {
+      method: 'POST',
+      headers: getHeaders()
+    });
+    return res.json();
+  },
+
+  async vacateUnit(unitId) {
+    const res = await fetch(`${API_BASE}/units/${unitId}/vacate`, {
+      method: 'POST',
+      headers: getHeaders()
+    });
+    return res.json();
+  },
+
   // Damages & Invoices
   async getDamages() {
     const res = await fetch(`${API_BASE}/damages`, { headers: getHeaders() });
@@ -247,6 +263,15 @@ export const api = {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({ tenantId, month, customMessage })
+    });
+    return res.json();
+  },
+
+  async generateRentInvoice(data) {
+    const res = await fetch(`${API_BASE}/rent/invoices/generate`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
     });
     return res.json();
   },
