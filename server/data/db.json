@@ -1199,16 +1199,12 @@
       "totalAmount": 24500,
       "issueDate": "2026-11-01",
       "dueDate": "2026-11-20",
-      "status": "paid",
-      "paidAt": "2026-11-04T10:19:00Z",
-      "paymentMethod": "Direct Bank Account (HDFC Bank •••• 4092)",
-      "transactionRef": "UTR/HDFC/202611/424668",
-      "receiptNumber": "RCT-NOVEMBER-2026-302",
-      "bankDetails": {
-        "bankName": "HDFC Bank",
-        "accountNumber": "•••• 4092",
-        "mode": "Direct Bank Account (IMPS Real-Time)"
-      }
+      "status": "unpaid",
+      "paidAt": null,
+      "paymentMethod": null,
+      "transactionRef": null,
+      "receiptNumber": null,
+      "bankDetails": null
     },
     {
       "id": "inv_2026_11_usr_tenant_2",
