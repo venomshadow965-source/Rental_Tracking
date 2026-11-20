@@ -88,6 +88,14 @@ export default function HraReceiptModal({ invoice, onClose }) {
                   <span className="text-slate-600">Society Maintenance:</span>
                   <span className="font-bold text-slate-900">₹{invoice.maintenanceCharges?.toLocaleString('en-IN')}</span>
                 </div>
+                {(invoice.landlordSettlement || invoice.upiDetails) && (
+                  <div className="flex justify-between pt-1 border-t border-slate-200">
+                    <span className="text-slate-600">Settled to Landlord A/c:</span>
+                    <span className="font-bold text-emerald-800 text-right">
+                      {invoice.landlordSettlement?.bankName || invoice.upiDetails?.settlementBank || 'Bank'} ({invoice.landlordSettlement?.maskedAccountNumber || '•••• 7821'}) • IFSC: {invoice.landlordSettlement?.ifsc || 'SBIN0000800'}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -95,11 +103,13 @@ export default function HraReceiptModal({ invoice, onClose }) {
             <div className="mt-8 pt-6 border-t-2 border-slate-200 flex items-end justify-between">
               <div>
                 <span className="text-xs text-slate-500 block uppercase font-bold">Landlord / House Owner</span>
-                <p className="font-bold text-slate-900 text-base mt-0.5">Rajesh Sharma</p>
+                <p className="font-bold text-slate-900 text-base mt-0.5">
+                  {invoice.landlordName || invoice.landlordSettlement?.name || 'Rajesh Sharma'}
+                </p>
                 <div className="mt-1">
                   <span className="text-xs text-slate-500">Landlord PAN: </span>
                   <span className="font-mono font-bold text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-800">
-                    {invoice.landlordPan || 'ABCPS1234F'}
+                    {invoice.landlordPan || invoice.landlordSettlement?.pan || 'ABCPS1234F'}
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-0.5">(Mandatory for HRA claims &gt; ₹1,00,000/yr)</p>
@@ -115,7 +125,7 @@ export default function HraReceiptModal({ invoice, onClose }) {
                 {/* Diagonal Signature across stamp */}
                 <div className="absolute inset-0 flex items-center justify-center -rotate-12 pointer-events-none">
                   <span className="font-serif italic font-bold text-blue-900 text-sm tracking-wide border-b-2 border-blue-900 pb-0.5">
-                    Rajesh Sharma
+                    {invoice.landlordName || invoice.landlordSettlement?.name || 'Rajesh Sharma'}
                   </span>
                 </div>
               </div>

@@ -259,8 +259,15 @@ export default function App() {
   };
 
   // Action: Pay Rent
-  const handlePayRent = async (invoiceId, paymentMethod, transactionRef) => {
-    const res = await api.payRent(invoiceId, paymentMethod, transactionRef);
+  const handlePayRent = async (invoiceId, paymentMethod, transactionRef, bankDetailsOrInvoice = null) => {
+    if (bankDetailsOrInvoice && bankDetailsOrInvoice.status === 'paid') {
+      // Already settled by server (e.g. via confirmUpiPayment, simulateUpiScan, or direct bank transfer)
+      setInvoices(prev => prev.map(i => i.id === invoiceId ? bankDetailsOrInvoice : i));
+      const notifsRes = await api.getNotifications();
+      if (notifsRes.success) setNotifications(notifsRes.notifications);
+      return { success: true, invoice: bankDetailsOrInvoice };
+    }
+    const res = await api.payRent(invoiceId, paymentMethod, transactionRef, bankDetailsOrInvoice);
     if (res.success) {
       setInvoices(prev => prev.map(i => i.id === invoiceId ? res.invoice : i));
       const notifsRes = await api.getNotifications();

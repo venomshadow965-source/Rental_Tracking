@@ -518,14 +518,71 @@ export default function PaymentsPage({
               <button
                 type="button"
                 onClick={() => {
-                  setShowLandlordAuditModal(true);
-                  setIsEditingLandlordProfile(false);
+                  if (isAdmin) {
+                    handleStartEditLandlordProfile();
+                  } else {
+                    setShowLandlordAuditModal(true);
+                    setIsEditingLandlordProfile(false);
+                  }
                 }}
                 className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs transition-all flex items-center space-x-2 whitespace-nowrap shadow-md cursor-pointer"
               >
                 <Settings className="w-4 h-4 text-slate-900" />
-                <span>Real Bank & UPI ⚙️</span>
+                <span>{isAdmin ? 'Link Real Bank & UPI ⚙️' : 'Landlord Bank Info 🏦'}</span>
               </button>
+            </div>
+          </div>
+
+          {/* REAL-TIME LANDLORD SETTLEMENT PROFILE BANNER */}
+          <div className="p-4 bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 text-white rounded-2xl border border-slate-700 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center space-x-3.5">
+              <div className="p-3 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30 flex-shrink-0">
+                <Landmark className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-extrabold text-sm text-white">
+                    {isAdmin ? 'Active Rent Settlement Account (Real Bank & UPI Destination)' : 'Landlord Verified Beneficiary Bank Details'}
+                  </span>
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-full border border-emerald-500/30 flex items-center space-x-1">
+                    <Radio className="w-2.5 h-2.5 text-emerald-400 animate-pulse" />
+                    <span>Live Settlement Rail</span>
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span>Beneficiary: <strong className="text-white">{landlordProfile?.registeredLegalName || landlordProfile?.name || 'Rajesh Sharma'}</strong></span>
+                  <span className="text-slate-500">•</span>
+                  <span>Bank: <strong className="text-white">{landlordProfile?.bankAccount?.bankName || 'State Bank of India'}</strong></span>
+                  <span className="text-slate-500">•</span>
+                  <span>A/c: <strong className="font-mono text-emerald-300">{landlordProfile?.bankAccount?.accountNumber || '20394819287821'} ({landlordProfile?.bankAccount?.maskedAccountNumber || '•••• 7821'})</strong></span>
+                  <span className="text-slate-500">•</span>
+                  <span>IFSC: <strong className="font-mono text-emerald-300">{landlordProfile?.bankAccount?.ifsc || 'SBIN0000800'}</strong></span>
+                  <span className="text-slate-500">•</span>
+                  <span>UPI VPA: <strong className="font-mono text-emerald-300">{landlordProfile?.upi?.vpa || 'rajesh.landlord@okhdfcbank'}</strong></span>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2 flex-shrink-0">
+              {isAdmin ? (
+                <button
+                  type="button"
+                  onClick={handleStartEditLandlordProfile}
+                  className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs transition-all flex items-center space-x-1.5 shadow-md cursor-pointer whitespace-nowrap"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-slate-900" />
+                  <span>Update Bank & UPI Details</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowLandlordAuditModal(true)}
+                  className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-emerald-300 font-bold rounded-xl text-xs transition-all flex items-center space-x-1.5 border border-white/20 cursor-pointer whitespace-nowrap"
+                >
+                  <FileCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Audit Landlord Certificate</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -751,6 +808,12 @@ export default function PaymentsPage({
                               <BadgeCheck className="w-3 h-3 text-emerald-600" />
                               <span>Bank Details Verified (₹1 Penny Drop Active)</span>
                             </span>
+
+                            {invoice.landlordSettlement && (
+                              <span className="inline-flex items-center space-x-1 bg-blue-50 border border-blue-200 text-blue-900 px-2 py-0.5 rounded-md text-[10px] font-bold">
+                                <span>Credited to: {invoice.landlordSettlement.bankName} ({invoice.landlordSettlement.maskedAccountNumber})</span>
+                              </span>
+                            )}
 
                             {invoice.transactionRef && (
                               <span className="inline-flex items-center space-x-1 bg-slate-100 text-slate-700 px-2 py-1 rounded-lg font-mono">
@@ -1704,7 +1767,11 @@ export default function PaymentsPage({
                 </div>
                 <div className="p-3 flex justify-between items-center">
                   <span className="text-slate-500">Landlord Destination A/c:</span>
-                  <strong className="text-slate-800 font-mono">State Bank of India (•••• 7821)</strong>
+                  <strong className="text-slate-800 font-mono">
+                    {inspectedInvoiceProof.landlordSettlement 
+                      ? `${inspectedInvoiceProof.landlordSettlement.name} • ${inspectedInvoiceProof.landlordSettlement.bankName} (${inspectedInvoiceProof.landlordSettlement.maskedAccountNumber}) • IFSC: ${inspectedInvoiceProof.landlordSettlement.ifsc}` 
+                      : (landlordProfile?.bankAccount ? `${landlordProfile.registeredLegalName || landlordProfile.name} • ${landlordProfile.bankAccount.bankName} (${landlordProfile.bankAccount.maskedAccountNumber})` : 'State Bank of India (•••• 7821)')}
+                  </strong>
                 </div>
                 <div className="p-3 flex justify-between items-center">
                   <span className="text-slate-500">Penny Drop Verification:</span>

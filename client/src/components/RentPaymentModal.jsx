@@ -154,17 +154,27 @@ export default function RentPaymentModal({
   const [realUtr, setRealUtr] = useState('');
   const [confirmingRealUpi, setConfirmingRealUpi] = useState(false);
 
+  // Direct Bank Transfer (IMPS/NEFT) state
+  const [copiedAccount, setCopiedAccount] = useState(false);
+  const [copiedIfsc, setCopiedIfsc] = useState(false);
+  const [bankTransferUtr, setBankTransferUtr] = useState('');
+  const [confirmingBankTransfer, setConfirmingBankTransfer] = useState(false);
+  const [bankPaymentSubTab, setBankPaymentSubTab] = useState('direct_transfer'); // 'direct_transfer' | 'bank_debit'
+
   if (!invoice) return null;
 
   // Dynamically resolve Landlord Real Settlement Profile (configured by landlord)
   const landlordUpi = landlordProfile?.upi?.vpa || "rajesh.landlord@okhdfcbank";
   const landlordName = landlordProfile?.registeredLegalName || landlordProfile?.name || "Rajesh Sharma";
+  const landlordRawAccount = landlordProfile?.bankAccount?.accountNumber || "20394819287821";
   const landlordBank = {
     name: landlordName,
     bank: landlordProfile?.bankAccount?.bankName || "State Bank of India (SBI)",
-    maskedAccount: landlordProfile?.bankAccount?.maskedAccountNumber || "•••• •••• 7821",
+    accountNumber: landlordRawAccount,
+    maskedAccount: landlordProfile?.bankAccount?.maskedAccountNumber || `•••• •••• ${landlordRawAccount.slice(-4)}`,
     ifsc: landlordProfile?.bankAccount?.ifsc || "SBIN0000800",
-    branch: landlordProfile?.bankAccount?.branch || "Bengaluru Main Branch"
+    branch: landlordProfile?.bankAccount?.branch || "Bengaluru Main Branch",
+    accountType: landlordProfile?.bankAccount?.accountType || "Current / Rent Settlement Account"
   };
 
   // Generate standard UPI Payment Intent URI
@@ -241,37 +251,59 @@ export default function RentPaymentModal({
     setTimeout(() => setCopiedUpi(false), 2000);
   };
 
+  const handleCopyAccount = () => {
+    navigator.clipboard.writeText(landlordBank.accountNumber);
+    setCopiedAccount(true);
+    setTimeout(() => setCopiedAccount(false), 2000);
+  };
+
+  const handleCopyIfsc = () => {
+    navigator.clipboard.writeText(landlordBank.ifsc);
+    setCopiedIfsc(true);
+    setTimeout(() => setCopiedIfsc(false), 2000);
+  };
+
   const formatTimer = (secs) => {
     const m = Math.floor(secs / 60);
     const s = secs % 60;
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
-  // Verify Landlord Banking & UPI QR on modal mount
+  // 1. Fetch Landlord Real Settlement Profile on mount (or whenever invoice changes)
   useEffect(() => {
     let isMounted = true;
-    async function loadVerification() {
+    async function loadLandlordProfile() {
       try {
         setVerifyingUpi(true);
-        const [llRes, qrRes] = await Promise.all([
-          api.getLandlordBankVerification(),
-          api.verifyUpiQr({ qrPayload })
-        ]);
-        if (isMounted) {
-          if (llRes?.success && llRes?.landlord) {
-            setLandlordProfile(llRes.landlord);
-          }
-          if (qrRes?.success && qrRes?.verification) {
-            setUpiVerifiedData(qrRes.verification);
-          }
+        const res = await api.getLandlordBankVerification();
+        if (isMounted && res?.success && res?.landlord) {
+          setLandlordProfile(res.landlord);
         }
       } catch (e) {
-        console.warn('Live verification check:', e);
+        console.warn('Could not fetch landlord profile:', e);
       } finally {
         if (isMounted) setVerifyingUpi(false);
       }
     }
-    loadVerification();
+    loadLandlordProfile();
+    return () => { isMounted = false; };
+  }, [invoice?.id]);
+
+  // 2. Validate UPI QR code payload integrity
+  useEffect(() => {
+    if (!upiPayload) return;
+    let isMounted = true;
+    async function validateQrPayload() {
+      try {
+        const qrRes = await api.verifyUpiQr({ qrPayload: upiPayload });
+        if (isMounted && qrRes?.success && qrRes?.verification) {
+          setUpiVerifiedData(qrRes.verification);
+        }
+      } catch (e) {
+        console.warn('QR check failed:', e);
+      }
+    }
+    validateQrPayload();
     return () => { isMounted = false; };
   }, [upiPayload]);
 
@@ -375,7 +407,8 @@ export default function RentPaymentModal({
       playUpiSuccessChime();
 
       // Trigger soundbox speech announcement
-      const announcement = `Rupees ${invoice.totalAmount.toLocaleString('en-IN')} received on KirayaSetu UPI for Rajesh Sharma`;
+      const payeeName = landlordName;
+      const announcement = `Rupees ${invoice.totalAmount.toLocaleString('en-IN')} received on KirayaSetu UPI for ${payeeName}`;
       setSoundboxAlert(announcement);
       speakSoundboxAlert(announcement);
 
@@ -386,18 +419,30 @@ export default function RentPaymentModal({
         origin: { y: 0.6 }
       });
 
-      setPaidReceipt(res?.invoice || {
+      const updatedInv = res?.invoice || {
         ...invoice,
         status: 'paid',
         paymentMethod: `Instant UPI (${selectedUpiApp})`,
         transactionRef: `UPI/NPCI/${res?.npciRrn || '432109847291'}`,
         receiptNumber: `RCT-${invoice.billingMonth.replace(' ', '-').toUpperCase()}-${invoice.unitNumber.replace(/\D/g, '') || '01'}`,
-        paidAt: new Date().toISOString()
-      });
+        paidAt: new Date().toISOString(),
+        landlordSettlement: {
+          name: landlordBank.name,
+          bankName: landlordBank.bank,
+          accountNumber: landlordBank.accountNumber,
+          maskedAccountNumber: landlordBank.maskedAccount,
+          ifsc: landlordBank.ifsc,
+          branch: landlordBank.branch,
+          upiId: landlordUpi,
+          pan: landlordProfile?.pan || 'ABCPS1234F'
+        }
+      };
+
+      setPaidReceipt(updatedInv);
 
       // Notify parent app
       if (onPaySuccess) {
-        onPaySuccess(invoice.id, `Instant UPI (${selectedUpiApp})`, `UPI/NPCI/${res?.npciRrn || '432109847291'}`);
+        onPaySuccess(invoice.id, `Instant UPI (${selectedUpiApp})`, `UPI/NPCI/${res?.npciRrn || '432109847291'}`, updatedInv);
       }
 
       setPaymentSuccess(true);
@@ -435,7 +480,7 @@ export default function RentPaymentModal({
 
       // Play Soundbox chime & voice
       playUpiSuccessChime();
-      const payeeName = landlordProfile?.registeredLegalName || landlordProfile?.name || 'Landlord';
+      const payeeName = landlordName;
       const announcement = `Rupees ${invoice.totalAmount.toLocaleString('en-IN')} received on KirayaSetu UPI for ${payeeName}`;
       setSoundboxAlert(announcement);
       speakSoundboxAlert(announcement);
@@ -448,7 +493,7 @@ export default function RentPaymentModal({
 
       setPaidReceipt(res.invoice);
       if (onPaySuccess) {
-        onPaySuccess(invoice.id, `Real-Time UPI (${selectedUpiApp})`, cleanUtr);
+        onPaySuccess(invoice.id, `Real-Time UPI (${selectedUpiApp})`, cleanUtr, res.invoice);
       }
       setPaymentSuccess(true);
     } catch (err) {
@@ -459,7 +504,74 @@ export default function RentPaymentModal({
     }
   };
 
-  // REAL-TIME DIRECT LINKED BANK ACCOUNT PAYMENT
+  // REAL-WORLD DIRECT IMPS/NEFT BANK TRANSFER CONFIRMATION
+  const handleConfirmDirectBankTransfer = async () => {
+    setErrorMsg('');
+    const cleanUtr = (bankTransferUtr || '').trim();
+    if (!cleanUtr || cleanUtr.length < 6) {
+      setErrorMsg('Please enter the 12-digit Bank IMPS / NEFT / UTR Transaction Reference Number from your banking app.');
+      return;
+    }
+    setConfirmingBankTransfer(true);
+
+    try {
+      const bankDetails = {
+        bankName: landlordBank.bank,
+        accountNumber: landlordBank.accountNumber,
+        maskedAccountNumber: landlordBank.maskedAccount,
+        ifsc: landlordBank.ifsc,
+        branch: landlordBank.branch,
+        mode: 'Direct Bank Transfer (IMPS/NEFT Real-Time Settlement)',
+        beneficiaryName: landlordBank.name
+      };
+
+      const res = await onPaySuccess(
+        invoice.id,
+        `Direct IMPS Bank Transfer (${landlordBank.bank})`,
+        cleanUtr,
+        bankDetails
+      );
+
+      playUpiSuccessChime();
+      const payeeName = landlordBank.name;
+      const announcement = `Rupees ${invoice.totalAmount.toLocaleString('en-IN')} received via IMPS Bank Transfer for ${payeeName}`;
+      setSoundboxAlert(announcement);
+      speakSoundboxAlert(announcement);
+
+      confetti({
+        particleCount: 140,
+        spread: 85,
+        origin: { y: 0.6 }
+      });
+
+      setPaidReceipt(res?.invoice || {
+        ...invoice,
+        status: 'paid',
+        paymentMethod: `Direct IMPS Bank Transfer (${landlordBank.bank})`,
+        transactionRef: cleanUtr,
+        receiptNumber: `RCT-${invoice.billingMonth.replace(' ', '-').toUpperCase()}-${invoice.unitNumber.replace(/\D/g, '') || '01'}`,
+        paidAt: new Date().toISOString(),
+        landlordSettlement: {
+          name: landlordBank.name,
+          bankName: landlordBank.bank,
+          accountNumber: landlordBank.accountNumber,
+          maskedAccountNumber: landlordBank.maskedAccount,
+          ifsc: landlordBank.ifsc,
+          branch: landlordBank.branch,
+          upiId: landlordUpi,
+          pan: landlordProfile?.pan || 'ABCPS1234F'
+        }
+      });
+      setPaymentSuccess(true);
+    } catch (err) {
+      console.error(err);
+      setErrorMsg(err.message || 'Direct bank transfer confirmation failed. Please try again.');
+    } finally {
+      setConfirmingBankTransfer(false);
+    }
+  };
+
+  // REAL-TIME DIRECT LINKED BANK ACCOUNT PAYMENT (MANDATE)
   const handleExecuteBankPayment = async () => {
     setErrorMsg('');
     setProcessing(true);
@@ -477,12 +589,21 @@ export default function RentPaymentModal({
         accountNumber: b?.maskedAccountNumber || '•••• 4092',
         ifsc: b?.ifsc || 'HDFC0001234',
         mode: 'Direct Bank Account (IMPS Real-Time Settlement)',
-        bankCode
+        bankCode,
+        beneficiaryBank: landlordBank.bank,
+        beneficiaryAccount: landlordBank.accountNumber,
+        beneficiaryIfsc: landlordBank.ifsc,
+        beneficiaryName: landlordBank.name
       };
 
       const res = await onPaySuccess(invoice.id, methodLabel, generatedUtr, bankDetails);
 
       playUpiSuccessChime();
+      const payeeName = landlordBank.name;
+      const announcement = `Rupees ${invoice.totalAmount.toLocaleString('en-IN')} debited directly to ${payeeName}`;
+      setSoundboxAlert(announcement);
+      speakSoundboxAlert(announcement);
+
       confetti({
         particleCount: 120,
         spread: 80,
@@ -495,7 +616,17 @@ export default function RentPaymentModal({
         paymentMethod: methodLabel,
         transactionRef: generatedUtr,
         receiptNumber: `RCT-${invoice.billingMonth.replace(' ', '-').toUpperCase()}-${invoice.unitNumber.replace(/\D/g, '') || '01'}`,
-        paidAt: new Date().toISOString()
+        paidAt: new Date().toISOString(),
+        landlordSettlement: {
+          name: landlordBank.name,
+          bankName: landlordBank.bank,
+          accountNumber: landlordBank.accountNumber,
+          maskedAccountNumber: landlordBank.maskedAccount,
+          ifsc: landlordBank.ifsc,
+          branch: landlordBank.branch,
+          upiId: landlordUpi,
+          pan: landlordProfile?.pan || 'ABCPS1234F'
+        }
       });
       setPaymentSuccess(true);
     } catch (err) {
@@ -793,10 +924,10 @@ export default function RentPaymentModal({
                           ✓ 📱 Step 1: Bharat QR 2.0 checksum validated via {selectedUpiApp}...
                         </div>
                         <div className={scanStep >= 2 ? 'font-bold text-emerald-800' : 'text-slate-400'}>
-                          ✓ 🔄 Step 2: NPCI UPI Switch resolving Landlord VPA (rajesh.landlord@okhdfcbank)...
+                          ✓ 🔄 Step 2: NPCI UPI Switch resolving Landlord VPA ({landlordUpi})...
                         </div>
                         <div className={scanStep >= 3 ? 'font-bold text-emerald-800' : 'text-slate-400'}>
-                          ✓ 💸 Step 3: Core Banking debit of ₹{invoice.totalAmount?.toLocaleString('en-IN')} & credit to SBI (•••• 7821)...
+                          ✓ 💸 Step 3: Core Banking debit of ₹{invoice.totalAmount?.toLocaleString('en-IN')} & credit to {landlordBank.bank} ({landlordBank.maskedAccount})...
                         </div>
                         <div className={scanStep >= 4 ? 'font-bold text-emerald-800' : 'text-slate-400'}>
                           ✓ 🟢 Step 4: Payment Confirmed by Landlord CBS & Soundbox Alert triggered!
@@ -898,348 +1029,503 @@ export default function RentPaymentModal({
             {paymentMode === 'bank_account' && (
               <div className="space-y-4 animate-in fade-in duration-150">
                 
-                {/* Account Selection Box */}
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                {/* Landlord Beneficiary Bank Account (Destination of all rent transfers) */}
+                <div className="p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950 text-white rounded-2xl border border-slate-700 shadow-md space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-700 flex items-center space-x-1.5">
-                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                      <span>Debit From Your Linked Bank Account</span>
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30">
+                        <Landmark className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center space-x-1.5">
+                          <span className="text-xs font-black tracking-wide text-white">Landlord Beneficiary Bank Account</span>
+                          <BadgeCheck className="w-3.5 h-3.5 text-emerald-400" />
+                        </div>
+                        <span className="text-[10px] text-emerald-300/80">Funds credit directly to this account • 0% platform charges</span>
+                      </div>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => setShowAddBank(prev => !prev)}
-                      className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center space-x-1"
+                      onClick={() => setShowUpiAuditModal(true)}
+                      className="text-[10px] bg-white/10 hover:bg-white/20 text-emerald-300 font-bold px-2 py-1 rounded-lg border border-white/10 transition-colors"
                     >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>{showAddBank ? 'Select Existing' : 'Link Another Bank A/c'}</span>
+                      Audit Proof
                     </button>
                   </div>
 
-                  {/* Add New Bank Account Inline Drawer */}
-                  {showAddBank ? (
-                    <form onSubmit={async (e) => {
-                      e.preventDefault();
-                      setLinkingBank(true);
-                      setErrorMsg('');
-                      try {
-                        const payload = {
-                          bankName: newBankName,
-                          accountHolder: newAccountHolder || currentUser?.name || 'Resident Tenant',
-                          accountNumber: newAccountNumber,
-                          ifsc: newIfsc.toUpperCase(),
-                          branch: ifscLookup?.branch || `${newBankName} Bengaluru Branch`,
-                          accountType: newAccountType
-                        };
-                        const res = await api.linkBankAccount(payload);
-                        if (res.success && res.bankAccount) {
-                          setBankAccounts(prev => [res.bankAccount, ...prev]);
-                          setSelectedBankId(res.bankAccount.id);
-                          setShowAddBank(false);
-                          setNewAccountNumber('');
-                          setPennyDropTestResult(null);
-                        } else {
-                          setErrorMsg(res.message || 'Failed to verify and link bank account');
-                        }
-                      } catch (err) {
-                        setErrorMsg(err.message || 'Failed to link bank account');
-                      } finally {
-                        setLinkingBank(false);
-                      }
-                    }} className="p-4 bg-white rounded-xl border border-emerald-300 space-y-3 shadow-xs animate-in fade-in">
-                      <div className="flex items-center justify-between">
-                        <div className="text-xs font-extrabold text-slate-900 flex items-center space-x-1.5">
-                          <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                          <span>Link New Bank Account (Real-Time ₹1 Penny Drop Verification)</span>
-                        </div>
-                        <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">
-                          NPCI IMPS Validated
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 text-xs">
+                    {/* Beneficiary Name */}
+                    <div className="p-2.5 bg-white/5 rounded-xl border border-white/10">
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Beneficiary Name</span>
+                      <strong className="text-white text-xs font-bold block truncate mt-0.5">{landlordBank.name}</strong>
+                    </div>
+
+                    {/* Bank Name */}
+                    <div className="p-2.5 bg-white/5 rounded-xl border border-white/10">
+                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Bank Name</span>
+                      <strong className="text-white text-xs font-bold block truncate mt-0.5">{landlordBank.bank}</strong>
+                    </div>
+
+                    {/* Account Number with Copy */}
+                    <div className="p-2.5 bg-white/5 rounded-xl border border-white/10 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Bank Account Number</span>
+                        <strong className="font-mono text-emerald-300 text-xs font-bold block tracking-wider mt-0.5">
+                          {landlordBank.accountNumber}
+                        </strong>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCopyAccount}
+                        className="px-2 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded-lg text-[10px] font-bold transition-colors flex items-center space-x-1"
+                        title="Copy Account Number"
+                      >
+                        {copiedAccount ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedAccount ? 'Copied!' : 'Copy'}</span>
+                      </button>
+                    </div>
+
+                    {/* IFSC Code with Copy */}
+                    <div className="p-2.5 bg-white/5 rounded-xl border border-white/10 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-medium">IFSC Code</span>
+                        <strong className="font-mono text-emerald-300 text-xs font-bold block tracking-wider mt-0.5">
+                          {landlordBank.ifsc}
+                        </strong>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCopyIfsc}
+                        className="px-2 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded-lg text-[10px] font-bold transition-colors flex items-center space-x-1"
+                        title="Copy IFSC Code"
+                      >
+                        {copiedIfsc ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedIfsc ? 'Copied!' : 'Copy'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] text-slate-300 pt-1 border-t border-white/10">
+                    <span>Branch: <strong className="text-white">{landlordBank.branch}</strong></span>
+                    <span className="text-emerald-400 font-bold flex items-center space-x-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>IMPS / NEFT / RTGS Live</span>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Sub-Tab Method Switcher */}
+                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setBankPaymentSubTab('direct_transfer')}
+                    className={`py-2 px-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
+                      bankPaymentSubTab === 'direct_transfer'
+                        ? 'bg-white text-emerald-900 shadow-xs border border-emerald-300'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Landmark className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>Confirm Bank Transfer (IMPS)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBankPaymentSubTab('bank_debit')}
+                    className={`py-2 px-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
+                      bankPaymentSubTab === 'bank_debit'
+                        ? 'bg-white text-emerald-900 shadow-xs border border-emerald-300'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>Direct Debit from My Bank</span>
+                  </button>
+                </div>
+
+                {/* SUB-OPTION A: CONFIRM DIRECT IMPS/NEFT TRANSFER */}
+                {bankPaymentSubTab === 'direct_transfer' && (
+                  <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-xs animate-in fade-in">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1.5">
+                        <FileCheck className="w-4 h-4 text-emerald-600" />
+                        <span className="text-xs font-bold text-slate-800">
+                          Confirm Real Bank IMPS / NEFT Transfer
                         </span>
                       </div>
+                      <span className="text-[10px] text-slate-400 font-mono">12-Digit Bank UTR</span>
+                    </div>
 
-                      <div className="grid grid-cols-2 gap-2.5 text-xs">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Account Holder Name</label>
-                          <input
-                            type="text"
-                            value={newAccountHolder}
-                            onChange={(e) => setNewAccountHolder(e.target.value)}
-                            placeholder="e.g. Priya Verma"
-                            className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white text-xs font-medium focus:ring-1 focus:ring-emerald-500"
-                          />
-                        </div>
+                    <p className="text-[11px] text-slate-500 leading-snug">
+                      Transfer <strong>₹{invoice.totalAmount?.toLocaleString('en-IN')}</strong> to Landlord <strong>{landlordBank.name}</strong>'s bank account above using <strong>SBI YONO, HDFC NetBanking, ICICI iMobile, Axis Mobile</strong>, or any NetBanking app. Then enter the transaction UTR / Reference number below:
+                    </p>
 
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Select Bank</label>
-                          <select
-                            value={newBankName}
-                            onChange={(e) => setNewBankName(e.target.value)}
-                            className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-slate-50 text-xs font-medium"
-                          >
-                            <option>HDFC Bank</option>
-                            <option>State Bank of India (SBI)</option>
-                            <option>ICICI Bank</option>
-                            <option>Axis Bank</option>
-                            <option>Kotak Mahindra Bank</option>
-                            <option>Punjab National Bank</option>
-                          </select>
-                        </div>
-                      </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="text"
+                        value={bankTransferUtr}
+                        onChange={(e) => setBankTransferUtr(e.target.value.replace(/[^a-zA-Z0-9/_-]/g, ''))}
+                        placeholder="e.g. 432109847291 or UTR/SBIN/..."
+                        maxLength={26}
+                        className="flex-1 px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold tracking-wider text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const bankCode = landlordBank.bank.includes('SBI') ? 'SBIN' : landlordBank.bank.includes('ICICI') ? 'ICIC' : landlordBank.bank.includes('Axis') ? 'UTIB' : 'HDFC';
+                          const demoUtr = `UTR/${bankCode}/${Date.now().toString().slice(-8)}/${Math.floor(1000 + Math.random() * 9000)}`;
+                          setBankTransferUtr(demoUtr);
+                        }}
+                        className="px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold rounded-xl whitespace-nowrap transition-colors border border-slate-200"
+                        title="Generate sample UTR for instant testing"
+                      >
+                        Auto-Fill
+                      </button>
+                    </div>
 
-                      <div className="grid grid-cols-2 gap-2.5 text-xs">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Account Number (9-18 digits)</label>
-                          <input
-                            type="text"
-                            value={newAccountNumber}
-                            onChange={(e) => {
-                              setNewAccountNumber(e.target.value);
-                              setPennyDropTestResult(null);
-                            }}
-                            placeholder="50100492819021"
-                            className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white text-xs font-mono"
-                          />
-                        </div>
-
-                        <div>
-                          <div className="flex items-center justify-between mb-0.5">
-                            <label className="text-[10px] font-bold text-slate-500">IFSC Code (11 Chars)</label>
-                            {ifscLoading && <span className="text-[10px] text-emerald-600 animate-pulse">Checking RBI...</span>}
-                          </div>
-                          <input
-                            type="text"
-                            maxLength={11}
-                            value={newIfsc}
-                            onChange={(e) => handleIfscChange(e.target.value)}
-                            placeholder="HDFC0001234"
-                            className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white text-xs font-mono uppercase"
-                          />
-                        </div>
-                      </div>
-
-                      {/* IFSC Branch Live Resolution Feedback */}
-                      {ifscLookup && (
-                        <div className={`p-2.5 rounded-lg text-[11px] font-medium flex items-center space-x-2 ${
-                          ifscLookup.isValid 
-                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
-                            : 'bg-rose-50 text-rose-800 border border-rose-200'
-                        }`}>
-                          {ifscLookup.isValid ? (
-                            <>
-                              <BadgeCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                              <div>
-                                <span className="font-bold">{ifscLookup.bankName}</span> — {ifscLookup.branch}, {ifscLookup.city}
-                                <span className="block text-[10px] text-emerald-700 font-mono mt-0.5">
-                                  MICR: {ifscLookup.micr} • IMPS/NEFT/RTGS: Supported
-                                </span>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
-                              <span>{ifscLookup.reason}</span>
-                            </>
-                          )}
-                        </div>
+                    <button
+                      type="button"
+                      onClick={handleConfirmDirectBankTransfer}
+                      disabled={confirmingBankTransfer || !bankTransferUtr.trim()}
+                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/30 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
+                    >
+                      {confirmingBankTransfer ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Verifying Settlement with Landlord Bank...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>Confirm IMPS Transfer & Issue HRA Receipt</span>
+                        </>
                       )}
+                    </button>
+                  </div>
+                )}
 
-                      {/* Penny Drop Test Result Banner */}
-                      {pennyDropTestResult && (
-                        <div className="p-2.5 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-900 space-y-1 animate-in zoom-in-95">
-                          <div className="flex items-center justify-between font-bold">
-                            <span className="flex items-center space-x-1 text-emerald-800">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                              <span>₹1.00 Penny Drop Verification Succeeded!</span>
-                            </span>
-                            <span className="text-[10px] bg-emerald-200 text-emerald-900 font-mono px-1.5 py-0.5 rounded">
-                              Status: {pennyDropTestResult.accountStatus}
-                            </span>
-                          </div>
-                          <div className="text-[11px] text-slate-600 space-y-0.5">
-                            <div>Registered Legal Name: <strong className="text-slate-900 font-mono">{pennyDropTestResult.beneficiaryName}</strong> ({pennyDropTestResult.nameMatchScore}% Match)</div>
-                            <div>IMPS Penny Ref: <span className="font-mono text-emerald-700">{pennyDropTestResult.pennyUtr}</span></div>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between pt-1">
+                {/* SUB-OPTION B: DIRECT DEBIT FROM MY LINKED BANK ACCOUNT */}
+                {bankPaymentSubTab === 'bank_debit' && (
+                  <div className="space-y-3 animate-in fade-in">
+                    {/* Account Selection Box */}
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-700 flex items-center space-x-1.5">
+                          <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                          <span>Debit From Your Linked Bank Account</span>
+                        </span>
                         <button
                           type="button"
-                          onClick={handleTestPennyDrop}
-                          disabled={pennyDropTesting || !newAccountNumber || newIfsc.length !== 11}
-                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-lg border border-slate-300 transition-colors disabled:opacity-50 flex items-center space-x-1"
+                          onClick={() => setShowAddBank(prev => !prev)}
+                          className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center space-x-1"
                         >
-                          {pennyDropTesting ? (
-                            <>
-                              <div className="w-3 h-3 border-2 border-slate-700 border-t-transparent rounded-full animate-spin" />
-                              <span>Testing Penny Drop (₹1.00)...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Zap className="w-3.5 h-3.5 text-amber-600" />
-                              <span>Test ₹1 Penny Drop</span>
-                            </>
-                          )}
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>{showAddBank ? 'Select Existing' : 'Link Another Bank A/c'}</span>
                         </button>
-
-                        <div className="flex items-center space-x-2">
-                          <button
-                            type="button"
-                            onClick={() => setShowAddBank(false)}
-                            className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-100"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="submit"
-                            disabled={linkingBank}
-                            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow-xs disabled:opacity-50"
-                          >
-                            {linkingBank ? 'Verifying & Linking...' : 'Verify & Link Bank A/c'}
-                          </button>
-                        </div>
                       </div>
-                    </form>
-                  ) : (
-                    /* Existing Linked Bank Accounts List */
-                    <div className="space-y-2">
-                      {bankAccounts.map((acc) => {
-                        const isSelected = (selectedBankId || bankAccounts[0]?.id) === acc.id;
-                        return (
-                          <div
-                            key={acc.id}
-                            className={`p-3 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                              isSelected
-                                ? 'bg-white border-emerald-500 shadow-sm ring-2 ring-emerald-500/20'
-                                : 'bg-white/80 border-slate-200 hover:border-slate-300'
-                            }`}
-                          >
-                            <div 
-                              onClick={() => setSelectedBankId(acc.id)}
-                              className="flex items-center space-x-3 cursor-pointer flex-1"
-                            >
-                              <div className={`p-2 rounded-xl ${isSelected ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
-                                <Landmark className="w-5 h-5" />
-                              </div>
-                              <div>
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <span className="text-xs font-bold text-slate-900">{acc.bankName}</span>
-                                  <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-mono">
-                                    {acc.maskedAccountNumber}
-                                  </span>
-                                  {acc.isVerified && (
-                                    <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 font-bold px-1.5 py-0.2 rounded flex items-center space-x-0.5">
-                                      <BadgeCheck className="w-3 h-3 text-emerald-600" />
-                                      <span>Penny Drop Verified</span>
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-[11px] text-slate-500 mt-0.5">
-                                  {acc.accountHolder} • {acc.accountType} • IFSC: <span className="font-mono">{acc.ifsc}</span>
-                                </p>
-                              </div>
+
+                      {/* Add New Bank Account Inline Drawer */}
+                      {showAddBank ? (
+                        <form onSubmit={async (e) => {
+                          e.preventDefault();
+                          setLinkingBank(true);
+                          setErrorMsg('');
+                          try {
+                            const payload = {
+                              bankName: newBankName,
+                              accountHolder: newAccountHolder || currentUser?.name || 'Resident Tenant',
+                              accountNumber: newAccountNumber,
+                              ifsc: newIfsc.toUpperCase(),
+                              branch: ifscLookup?.branch || `${newBankName} Bengaluru Branch`,
+                              accountType: newAccountType
+                            };
+                            const res = await api.linkBankAccount(payload);
+                            if (res.success && res.bankAccount) {
+                              setBankAccounts(prev => [res.bankAccount, ...prev]);
+                              setSelectedBankId(res.bankAccount.id);
+                              setShowAddBank(false);
+                              setNewAccountNumber('');
+                              setPennyDropTestResult(null);
+                            } else {
+                              setErrorMsg(res.message || 'Failed to verify and link bank account');
+                            }
+                          } catch (err) {
+                            setErrorMsg(err.message || 'Failed to link bank account');
+                          } finally {
+                            setLinkingBank(false);
+                          }
+                        }} className="p-4 bg-white rounded-xl border border-emerald-300 space-y-3 shadow-xs animate-in fade-in">
+                          <div className="flex items-center justify-between">
+                            <div className="text-xs font-extrabold text-slate-900 flex items-center space-x-1.5">
+                              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                              <span>Link New Bank Account (Real-Time ₹1 Penny Drop Verification)</span>
+                            </div>
+                            <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">
+                              NPCI IMPS Validated
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2.5 text-xs">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Account Holder Name</label>
+                              <input
+                                type="text"
+                                value={newAccountHolder}
+                                onChange={(e) => setNewAccountHolder(e.target.value)}
+                                placeholder="e.g. Priya Verma"
+                                className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white text-xs font-medium focus:ring-1 focus:ring-emerald-500"
+                              />
                             </div>
 
-                            <div className="flex items-center justify-between sm:justify-end space-x-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setInspectedBankAudit(acc);
-                                }}
-                                className="px-2.5 py-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors flex items-center space-x-1"
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Select Bank</label>
+                              <select
+                                value={newBankName}
+                                onChange={(e) => setNewBankName(e.target.value)}
+                                className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-slate-50 text-xs font-medium"
                               >
-                                <FileCheck className="w-3 h-3 text-emerald-600" />
-                                <span>Audit IMPS Proof</span>
-                              </button>
+                                <option>HDFC Bank</option>
+                                <option>State Bank of India (SBI)</option>
+                                <option>ICICI Bank</option>
+                                <option>Axis Bank</option>
+                                <option>Kotak Mahindra Bank</option>
+                                <option>Punjab National Bank</option>
+                              </select>
+                            </div>
+                          </div>
 
+                          <div className="grid grid-cols-2 gap-2.5 text-xs">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Account Number (9-18 digits)</label>
                               <input
-                                type="radio"
-                                name="selectedBank"
-                                checked={isSelected}
-                                onChange={() => setSelectedBankId(acc.id)}
-                                className="text-emerald-600 focus:ring-emerald-500 h-4 w-4"
+                                type="text"
+                                value={newAccountNumber}
+                                onChange={(e) => {
+                                  setNewAccountNumber(e.target.value);
+                                  setPennyDropTestResult(null);
+                                }}
+                                placeholder="50100492819021"
+                                className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white text-xs font-mono"
+                              />
+                            </div>
+
+                            <div>
+                              <div className="flex items-center justify-between mb-0.5">
+                                <label className="text-[10px] font-bold text-slate-500">IFSC Code (11 Chars)</label>
+                                {ifscLoading && <span className="text-[10px] text-emerald-600 animate-pulse">Checking RBI...</span>}
+                              </div>
+                              <input
+                                type="text"
+                                maxLength={11}
+                                value={newIfsc}
+                                onChange={(e) => handleIfscChange(e.target.value)}
+                                placeholder="HDFC0001234"
+                                className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white text-xs font-mono uppercase"
                               />
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
 
-                  {/* Beneficiary Routing Details */}
-                  <div className="pt-2 border-t border-slate-200 text-xs space-y-1.5">
-                    <div className="flex items-center justify-between text-slate-600 text-[11px]">
-                      <span>Credited Directly to Landlord:</span>
-                      <strong className="text-slate-900 flex items-center space-x-1">
-                        <span>{landlordBank.name} ({landlordBank.bank})</span>
-                        <BadgeCheck className="w-3.5 h-3.5 text-emerald-600" />
-                      </strong>
+                          {/* IFSC Branch Live Resolution Feedback */}
+                          {ifscLookup && (
+                            <div className={`p-2.5 rounded-lg text-[11px] font-medium flex items-center space-x-2 ${
+                              ifscLookup.isValid 
+                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
+                                : 'bg-rose-50 text-rose-800 border border-rose-200'
+                            }`}>
+                              {ifscLookup.isValid ? (
+                                <>
+                                  <BadgeCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                                  <div>
+                                    <span className="font-bold">{ifscLookup.bankName}</span> — {ifscLookup.branch}, {ifscLookup.city}
+                                    <span className="block text-[10px] text-emerald-700 font-mono mt-0.5">
+                                      MICR: {ifscLookup.micr} • IMPS/NEFT/RTGS: Supported
+                                    </span>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                                  <span>{ifscLookup.reason}</span>
+                                </>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Penny Drop Test Result Banner */}
+                          {pennyDropTestResult && (
+                            <div className="p-2.5 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-900 space-y-1 animate-in zoom-in-95">
+                              <div className="flex items-center justify-between font-bold">
+                                <span className="flex items-center space-x-1 text-emerald-800">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>₹1.00 Penny Drop Verification Succeeded!</span>
+                                </span>
+                                <span className="text-[10px] bg-emerald-200 text-emerald-900 font-mono px-1.5 py-0.5 rounded">
+                                  Status: {pennyDropTestResult.accountStatus}
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-slate-600 space-y-0.5">
+                                <div>Registered Legal Name: <strong className="text-slate-900 font-mono">{pennyDropTestResult.beneficiaryName}</strong> ({pennyDropTestResult.nameMatchScore}% Match)</div>
+                                <div>IMPS Penny Ref: <span className="font-mono text-emerald-700">{pennyDropTestResult.pennyUtr}</span></div>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between pt-1">
+                            <button
+                              type="button"
+                              onClick={handleTestPennyDrop}
+                              disabled={pennyDropTesting || !newAccountNumber || newIfsc.length !== 11}
+                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-lg border border-slate-300 transition-colors disabled:opacity-50 flex items-center space-x-1"
+                            >
+                              {pennyDropTesting ? (
+                                <>
+                                  <div className="w-3 h-3 border-2 border-slate-700 border-t-transparent rounded-full animate-spin" />
+                                  <span>Testing Penny Drop (₹1.00)...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Zap className="w-3.5 h-3.5 text-amber-600" />
+                                  <span>Test ₹1 Penny Drop</span>
+                                </>
+                              )}
+                            </button>
+
+                            <div className="flex items-center space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => setShowAddBank(false)}
+                                className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-100"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="submit"
+                                disabled={linkingBank}
+                                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow-xs disabled:opacity-50"
+                              >
+                                {linkingBank ? 'Verifying & Linking...' : 'Verify & Link Bank A/c'}
+                              </button>
+                            </div>
+                          </div>
+                        </form>
+                      ) : (
+                        /* Existing Linked Bank Accounts List */
+                        <div className="space-y-2">
+                          {bankAccounts.map((acc) => {
+                            const isSelected = (selectedBankId || bankAccounts[0]?.id) === acc.id;
+                            return (
+                              <div
+                                key={acc.id}
+                                className={`p-3 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                                  isSelected
+                                    ? 'bg-white border-emerald-500 shadow-sm ring-2 ring-emerald-500/20'
+                                    : 'bg-white/80 border-slate-200 hover:border-slate-300'
+                                }`}
+                              >
+                                <div 
+                                  onClick={() => setSelectedBankId(acc.id)}
+                                  className="flex items-center space-x-3 cursor-pointer flex-1"
+                                >
+                                  <div className={`p-2 rounded-xl ${isSelected ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
+                                    <Landmark className="w-5 h-5" />
+                                  </div>
+                                  <div>
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <span className="text-xs font-bold text-slate-900">{acc.bankName}</span>
+                                      <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-mono">
+                                        {acc.maskedAccountNumber}
+                                      </span>
+                                      {acc.isVerified && (
+                                        <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 font-bold px-1.5 py-0.2 rounded flex items-center space-x-0.5">
+                                          <BadgeCheck className="w-3 h-3 text-emerald-600" />
+                                          <span>Penny Drop Verified</span>
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 mt-0.5">
+                                      {acc.accountHolder} • {acc.accountType} • IFSC: <span className="font-mono">{acc.ifsc}</span>
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center justify-between sm:justify-end space-x-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setInspectedBankAudit(acc);
+                                    }}
+                                    className="px-2.5 py-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors flex items-center space-x-1"
+                                  >
+                                    <FileCheck className="w-3 h-3 text-emerald-600" />
+                                    <span>Audit IMPS Proof</span>
+                                  </button>
+
+                                  <input
+                                    type="radio"
+                                    name="selectedBank"
+                                    checked={isSelected}
+                                    onChange={() => setSelectedBankId(acc.id)}
+                                    className="text-emerald-600 focus:ring-emerald-500 h-4 w-4"
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-center justify-between text-slate-600 text-[11px]">
-                      <span>Landlord Bank A/c:</span>
-                      <div className="flex items-center space-x-1.5">
-                        <strong className="font-mono text-slate-800">{landlordBank.maskedAccount} (IFSC: {landlordBank.ifsc})</strong>
+
+                    {/* 2FA MPIN */}
+                    <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-200/80 flex items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center space-x-2">
+                        <div className="p-1.5 bg-emerald-100 text-emerald-800 rounded-lg">
+                          <Lock className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <span className="font-bold text-slate-900 block">Bank 4-Digit Secure MPIN</span>
+                          <span className="text-[11px] text-slate-500">Authorize real-time debit mandate</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type={showMpin ? 'text' : 'password'}
+                          maxLength={4}
+                          value={mpin}
+                          onChange={(e) => setMpin(e.target.value)}
+                          className="w-20 px-2 py-1 bg-white border border-slate-300 rounded-lg text-center font-mono font-bold tracking-widest text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+                        />
                         <button
                           type="button"
-                          onClick={() => setShowUpiAuditModal(true)}
-                          className="text-[10px] text-emerald-700 font-bold underline hover:text-emerald-900"
+                          onClick={() => setShowMpin(prev => !prev)}
+                          className="text-[10px] font-bold text-slate-500 hover:text-slate-800 underline"
                         >
-                          Audit Landlord Bank
+                          {showMpin ? 'Hide' : 'Show'}
                         </button>
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                {/* 2FA MPIN */}
-                <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-200/80 flex items-center justify-between gap-3 text-xs">
-                  <div className="flex items-center space-x-2">
-                    <div className="p-1.5 bg-emerald-100 text-emerald-800 rounded-lg">
-                      <Lock className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <span className="font-bold text-slate-900 block">Bank 4-Digit Secure MPIN</span>
-                      <span className="text-[11px] text-slate-500">Authorize real-time debit mandate</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type={showMpin ? 'text' : 'password'}
-                      maxLength={4}
-                      value={mpin}
-                      onChange={(e) => setMpin(e.target.value)}
-                      className="w-20 px-2 py-1 bg-white border border-slate-300 rounded-lg text-center font-mono font-bold tracking-widest text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
-                    />
+                    {/* Submit Direct Bank Payment */}
                     <button
                       type="button"
-                      onClick={() => setShowMpin(prev => !prev)}
-                      className="text-[10px] font-bold text-slate-500 hover:text-slate-800 underline"
+                      onClick={handleExecuteBankPayment}
+                      disabled={processing}
+                      className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
                     >
-                      {showMpin ? 'Hide' : 'Show'}
+                      {processing ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Executing Real-Time Settlement...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Pay ₹{invoice.totalAmount?.toLocaleString('en-IN')} Directly from Bank</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      )}
                     </button>
                   </div>
-                </div>
-
-                {/* Submit Direct Bank Payment */}
-                <button
-                  type="button"
-                  onClick={handleExecuteBankPayment}
-                  disabled={processing}
-                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
-                >
-                  {processing ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Executing Real-Time Settlement...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Pay ₹{invoice.totalAmount?.toLocaleString('en-IN')} Directly from Bank</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
+                )}
 
               </div>
             )}
@@ -1322,7 +1608,7 @@ export default function RentPaymentModal({
             <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 font-semibold text-left flex items-center space-x-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
               <span>
-                Payment recorded in real time on landlord Rajesh Sharma's November 2026 rent tracker and yearly calendar!
+                Payment recorded in real time on landlord {landlordName}'s {invoice.billingMonth} rent tracker and yearly calendar!
               </span>
             </div>
 
@@ -1378,7 +1664,7 @@ export default function RentPaymentModal({
                 <div>
                   <span className="text-[10px] uppercase tracking-wider text-emerald-700 font-bold block">Registered Legal Beneficiary</span>
                   <div className="text-sm font-black text-slate-900 flex items-center space-x-1.5">
-                    <span>{landlordProfile?.registeredLegalName || 'RAJESH SHARMA'}</span>
+                    <span>{landlordName}</span>
                     <BadgeCheck className="w-4 h-4 text-emerald-600 fill-current" />
                   </div>
                   <span className="text-[11px] text-slate-500">Residential Property Owner & Landlord</span>
@@ -1399,7 +1685,7 @@ export default function RentPaymentModal({
                 </div>
                 <div className="p-3 flex justify-between items-center">
                   <span className="text-slate-500">PSP Bank Handle:</span>
-                  <strong className="text-slate-800">HDFC Bank Limited (Active Gateway)</strong>
+                  <strong className="text-slate-800">{landlordBank.bank} (Active Gateway)</strong>
                 </div>
                 <div className="p-3 flex justify-between items-center">
                   <span className="text-slate-500">Merchant Category Code (MCC):</span>
@@ -1422,21 +1708,21 @@ export default function RentPaymentModal({
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 font-mono text-[11px]">
                   <div className="flex justify-between">
                     <span className="text-slate-500 font-sans">Bank:</span>
-                    <strong className="text-slate-900 font-sans">State Bank of India (SBI)</strong>
+                    <strong className="text-slate-900 font-sans">{landlordBank.bank}</strong>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500 font-sans">Settlement A/c:</span>
-                    <strong className="text-slate-900">20394819287821 (Masked: •••• 7821)</strong>
+                    <strong className="text-slate-900">{landlordBank.accountNumber} (Masked: {landlordBank.maskedAccount})</strong>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500 font-sans">IFSC Code:</span>
-                    <strong className="text-slate-900">SBIN0000800 (Bengaluru Main Branch)</strong>
+                    <strong className="text-slate-900">{landlordBank.ifsc} ({landlordBank.branch})</strong>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500 font-sans">Penny Drop Verification:</span>
                     <strong className="text-emerald-700 font-sans flex items-center space-x-1">
                       <CheckCircle className="w-3.5 h-3.5" />
-                      <span>ACTIVE (IMPS/PENNY/481920491820)</span>
+                      <span>ACTIVE ({landlordProfile?.bankAccount?.pennyDropUtr || 'IMPS/PENNY/CBS_ACTIVE'})</span>
                     </strong>
                   </div>
                 </div>
