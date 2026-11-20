@@ -129,7 +129,7 @@ export default function AgreementsPage({
                               <span className="text-[10px] text-rose-700 font-bold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
                                 ⚠️ Rent Unpaid: ₹{unpaidInv.totalAmount?.toLocaleString('en-IN')}
                               </span>
-                              {onOpenPayRent && (
+                              {!isAdmin && onOpenPayRent && (
                                 <button
                                   type="button"
                                   onClick={() => onOpenPayRent(unpaidInv)}
@@ -347,17 +347,25 @@ export default function AgreementsPage({
                   {/* Pay Rent if Unpaid */}
                   {(() => {
                     const unpaidInv = (invoices || []).find(inv => inv.tenantId === agreement.tenantId && inv.status === 'unpaid');
-                    if (unpaidInv && onOpenPayRent) {
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => onOpenPayRent(unpaidInv)}
-                          className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white rounded-lg text-xs font-bold shadow-md flex items-center space-x-1 cursor-pointer"
-                        >
-                          <Zap className="w-3.5 h-3.5 text-amber-200 fill-current" />
-                          <span>Pay Rent (₹{unpaidInv.totalAmount?.toLocaleString('en-IN')}) ⚡</span>
-                        </button>
-                      );
+                    if (unpaidInv) {
+                      if (!isAdmin && onOpenPayRent) {
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => onOpenPayRent(unpaidInv)}
+                            className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white rounded-lg text-xs font-bold shadow-md flex items-center space-x-1 cursor-pointer"
+                          >
+                            <Zap className="w-3.5 h-3.5 text-amber-200 fill-current" />
+                            <span>Pay Rent (₹{unpaidInv.totalAmount?.toLocaleString('en-IN')}) ⚡</span>
+                          </button>
+                        );
+                      } else if (isAdmin) {
+                        return (
+                          <span className="px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg text-[11px] font-bold">
+                            Rent Unpaid (₹{unpaidInv.totalAmount?.toLocaleString('en-IN')})
+                          </span>
+                        );
+                      }
                     }
                     return null;
                   })()}

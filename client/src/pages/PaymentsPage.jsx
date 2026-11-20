@@ -41,6 +41,8 @@ export default function PaymentsPage({
   currentUser,
   users = [],
   units = [],
+  landlordProfile: propLandlordProfile = null,
+  onUpdateLandlordProfile = null,
   onOpenPayRent,
   onOpenHraReceipt,
   onSendRentReminders,
@@ -82,7 +84,7 @@ export default function PaymentsPage({
   const [inspectedInvoiceProof, setInspectedInvoiceProof] = useState(null);
 
   // Landlord Real Settlement Profile State (Editable for real bank & UPI transactions)
-  const [landlordProfile, setLandlordProfile] = useState(null);
+  const [landlordProfile, setLandlordProfile] = useState(propLandlordProfile || null);
   const [isEditingLandlordProfile, setIsEditingLandlordProfile] = useState(false);
   const [editName, setEditName] = useState('');
   const [editUpiId, setEditUpiId] = useState('');
@@ -97,7 +99,13 @@ export default function PaymentsPage({
   const [ifscLookupInfo, setIfscLookupInfo] = useState(null);
   const [ifscLoading, setIfscLoading] = useState(false);
 
-  // Load Landlord Settlement Profile
+  useEffect(() => {
+    if (propLandlordProfile) {
+      setLandlordProfile(propLandlordProfile);
+    }
+  }, [propLandlordProfile]);
+
+  // Load / Refresh Landlord Settlement Profile
   useEffect(() => {
     let isMounted = true;
     async function fetchLandlordBanking() {
@@ -105,6 +113,7 @@ export default function PaymentsPage({
         const res = await api.getLandlordBankVerification();
         if (isMounted && res.success && res.landlord) {
           setLandlordProfile(res.landlord);
+          if (onUpdateLandlordProfile) onUpdateLandlordProfile(res.landlord);
         }
       } catch (err) {
         console.warn('Could not fetch landlord profile:', err);
@@ -112,7 +121,7 @@ export default function PaymentsPage({
     }
     fetchLandlordBanking();
     return () => { isMounted = false; };
-  }, []);
+  }, [currentUser?.id]);
 
   const handleStartEditLandlordProfile = () => {
     setEditName(landlordProfile?.registeredLegalName || landlordProfile?.name || 'Rajesh Sharma');
@@ -476,7 +485,7 @@ export default function PaymentsPage({
                   <ShieldCheck className="w-5 h-5 text-emerald-300" />
                 </span>
                 <span className="text-xs font-black uppercase tracking-wider text-emerald-300">
-                  Verified Real-World Settlement Rail & Beneficiary
+                  {isAdmin ? 'Active Rent Settlement Account (Real Bank & UPI Destination)' : 'Verified Real-World Settlement Rail & Beneficiary'}
                 </span>
                 <span className="text-[10px] bg-emerald-500/30 text-emerald-200 border border-emerald-400/30 font-bold px-2 py-0.5 rounded-full flex items-center space-x-1">
                   <BadgeCheck className="w-3.5 h-3.5 text-emerald-300" />
@@ -489,13 +498,15 @@ export default function PaymentsPage({
                 <div className="text-emerald-500">•</div>
                 <div>Bank: <strong className="text-white">{landlordProfile?.bankAccount?.bankName || 'State Bank of India'} ({landlordProfile?.bankAccount?.branch || 'Main Branch'})</strong></div>
                 <div className="text-emerald-500">•</div>
-                <div>A/c: <strong className="font-mono text-white">{landlordProfile?.bankAccount?.maskedAccountNumber || '•••• 7821'}</strong> (IFSC: <strong className="font-mono text-white">{landlordProfile?.bankAccount?.ifsc || 'SBIN0000800'}</strong>)</div>
+                <div>A/c: <strong className="font-mono text-emerald-200">{landlordProfile?.bankAccount?.accountNumber || '20394819287821'}</strong> ({landlordProfile?.bankAccount?.maskedAccountNumber || '•••• 7821'})</div>
+                <div className="text-emerald-500">•</div>
+                <div>IFSC: <strong className="font-mono text-emerald-200">{landlordProfile?.bankAccount?.ifsc || 'SBIN0000800'}</strong></div>
                 <div className="text-emerald-500">•</div>
                 <div>UPI ID: <strong className="font-mono text-emerald-200">{landlordProfile?.upi?.vpa || 'rajesh.landlord@okhdfcbank'}</strong></div>
               </div>
             </div>
 
-            <div className="flex items-center space-x-2 self-start md:self-auto">
+            <div className="flex items-center space-x-2 self-start md:self-auto flex-shrink-0">
               {isAdmin && onGenerateRentInvoice && (
                 <button
                   type="button"
@@ -515,72 +526,26 @@ export default function PaymentsPage({
                 </button>
               )}
 
-              <button
-                type="button"
-                onClick={() => {
-                  if (isAdmin) {
-                    handleStartEditLandlordProfile();
-                  } else {
-                    setShowLandlordAuditModal(true);
-                    setIsEditingLandlordProfile(false);
-                  }
-                }}
-                className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs transition-all flex items-center space-x-2 whitespace-nowrap shadow-md cursor-pointer"
-              >
-                <Settings className="w-4 h-4 text-slate-900" />
-                <span>{isAdmin ? 'Link Real Bank & UPI ⚙️' : 'Landlord Bank Info 🏦'}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* REAL-TIME LANDLORD SETTLEMENT PROFILE BANNER */}
-          <div className="p-4 bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 text-white rounded-2xl border border-slate-700 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-start sm:items-center space-x-3.5">
-              <div className="p-3 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30 flex-shrink-0">
-                <Landmark className="w-5 h-5" />
-              </div>
-              <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-extrabold text-sm text-white">
-                    {isAdmin ? 'Active Rent Settlement Account (Real Bank & UPI Destination)' : 'Landlord Verified Beneficiary Bank Details'}
-                  </span>
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-full border border-emerald-500/30 flex items-center space-x-1">
-                    <Radio className="w-2.5 h-2.5 text-emerald-400 animate-pulse" />
-                    <span>Live Settlement Rail</span>
-                  </span>
-                </div>
-                <p className="text-xs text-slate-300 flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span>Beneficiary: <strong className="text-white">{landlordProfile?.registeredLegalName || landlordProfile?.name || 'Rajesh Sharma'}</strong></span>
-                  <span className="text-slate-500">•</span>
-                  <span>Bank: <strong className="text-white">{landlordProfile?.bankAccount?.bankName || 'State Bank of India'}</strong></span>
-                  <span className="text-slate-500">•</span>
-                  <span>A/c: <strong className="font-mono text-emerald-300">{landlordProfile?.bankAccount?.accountNumber || '20394819287821'} ({landlordProfile?.bankAccount?.maskedAccountNumber || '•••• 7821'})</strong></span>
-                  <span className="text-slate-500">•</span>
-                  <span>IFSC: <strong className="font-mono text-emerald-300">{landlordProfile?.bankAccount?.ifsc || 'SBIN0000800'}</strong></span>
-                  <span className="text-slate-500">•</span>
-                  <span>UPI VPA: <strong className="font-mono text-emerald-300">{landlordProfile?.upi?.vpa || 'rajesh.landlord@okhdfcbank'}</strong></span>
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2 flex-shrink-0">
               {isAdmin ? (
                 <button
                   type="button"
                   onClick={handleStartEditLandlordProfile}
-                  className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs transition-all flex items-center space-x-1.5 shadow-md cursor-pointer whitespace-nowrap"
+                  className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs transition-all flex items-center space-x-2 whitespace-nowrap shadow-md cursor-pointer"
                 >
-                  <Edit3 className="w-3.5 h-3.5 text-slate-900" />
-                  <span>Update Bank & UPI Details</span>
+                  <Settings className="w-4 h-4 text-slate-900" />
+                  <span>Link Real Bank & UPI ⚙️</span>
                 </button>
               ) : (
                 <button
                   type="button"
-                  onClick={() => setShowLandlordAuditModal(true)}
-                  className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-emerald-300 font-bold rounded-xl text-xs transition-all flex items-center space-x-1.5 border border-white/20 cursor-pointer whitespace-nowrap"
+                  onClick={() => {
+                    setShowLandlordAuditModal(true);
+                    setIsEditingLandlordProfile(false);
+                  }}
+                  className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs transition-all flex items-center space-x-2 whitespace-nowrap shadow-md cursor-pointer"
                 >
-                  <FileCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Audit Landlord Certificate</span>
+                  <FileCheck className="w-4 h-4 text-slate-900" />
+                  <span>Landlord Bank Info 🏦</span>
                 </button>
               )}
             </div>
@@ -867,14 +832,31 @@ export default function PaymentsPage({
 
                         <div className="flex items-center space-x-2">
                           {!isPaid ? (
-                            <button
-                              type="button"
-                              onClick={() => onOpenPayRent(invoice)}
-                              className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black rounded-xl text-xs shadow-md shadow-emerald-600/30 flex items-center space-x-1.5 transition-all cursor-pointer"
-                            >
-                              <Zap className="w-3.5 h-3.5 text-amber-300 fill-current" />
-                              <span>{isAdmin ? 'Record / Pay Rent ⚡' : 'Pay Rent Now ⚡'}</span>
-                            </button>
+                            !isAdmin && onOpenPayRent ? (
+                              <button
+                                type="button"
+                                onClick={() => onOpenPayRent(invoice)}
+                                className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black rounded-xl text-xs shadow-md shadow-emerald-600/30 flex items-center space-x-1.5 transition-all cursor-pointer"
+                              >
+                                <Zap className="w-3.5 h-3.5 text-amber-300 fill-current" />
+                                <span>Pay Rent Now ⚡</span>
+                              </button>
+                            ) : isAdmin ? (
+                              <div className="flex items-center space-x-2">
+                                <span className="px-3 py-1.5 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl text-xs font-bold flex items-center space-x-1">
+                                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                  <span>Pending Tenant Payment</span>
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={handleBroadcastReminders}
+                                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                                  title="Send payment reminder to tenant"
+                                >
+                                  Remind
+                                </button>
+                              </div>
+                            ) : null
                           ) : (
                             <button
                               type="button"

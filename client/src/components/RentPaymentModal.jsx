@@ -88,6 +88,7 @@ const speakSoundboxAlert = (text) => {
 export default function RentPaymentModal({ 
   invoice, 
   currentUser,
+  landlordProfile: propLandlordProfile = null,
   onClose, 
   onPaySuccess 
 }) {
@@ -122,7 +123,13 @@ export default function RentPaymentModal({
   const [showUpiAuditModal, setShowUpiAuditModal] = useState(false);
   const [verifyingPayerVpa, setVerifyingPayerVpa] = useState(false);
   const [payerVpaResult, setPayerVpaResult] = useState(null);
-  const [landlordProfile, setLandlordProfile] = useState(null);
+  const [landlordProfile, setLandlordProfile] = useState(propLandlordProfile || null);
+
+  useEffect(() => {
+    if (propLandlordProfile) {
+      setLandlordProfile(propLandlordProfile);
+    }
+  }, [propLandlordProfile]);
   const [inspectedBankAudit, setInspectedBankAudit] = useState(null);
 
   // Security MPIN for Direct Bank Debit

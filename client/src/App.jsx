@@ -65,6 +65,7 @@ export default function App() {
   const [viewingGovReceipt, setViewingGovReceipt] = useState(null);
   const [viewingMapProperty, setViewingMapProperty] = useState(null);
   const [editingLocationProperty, setEditingLocationProperty] = useState(null);
+  const [landlordProfile, setLandlordProfile] = useState(null);
 
   // Initial Load
   useEffect(() => {
@@ -76,16 +77,18 @@ export default function App() {
       setLoading(true);
       const savedId = getSavedUserId();
       
-      // Fetch users and units for auth selection
-      const [usersRes, propsRes, unitsRes] = await Promise.all([
+      // Fetch users, units, and verified landlord profile
+      const [usersRes, propsRes, unitsRes, llRes] = await Promise.all([
         api.getUsers(),
         api.getProperties(),
-        api.getUnits()
+        api.getUnits(),
+        api.getLandlordBankVerification()
       ]);
 
       if (usersRes.success) setUsers(usersRes.users);
       if (propsRes.success) setProperties(propsRes.properties);
       if (unitsRes.success) setUnits(unitsRes.units);
+      if (llRes?.success && llRes?.landlord) setLandlordProfile(llRes.landlord);
 
       // If user has a saved session, load their current profile and scoped data
       if (savedId) {
@@ -109,7 +112,7 @@ export default function App() {
 
   const loadUserScopedData = async () => {
     try {
-      const [agrsRes, invsRes, metersRes, billsRes, damagesRes, notifsRes, propsRes, unitsRes] = await Promise.all([
+      const [agrsRes, invsRes, metersRes, billsRes, damagesRes, notifsRes, propsRes, unitsRes, llRes] = await Promise.all([
         api.getAgreements(),
         api.getRentInvoices(),
         api.getMeters(),
@@ -117,7 +120,8 @@ export default function App() {
         api.getDamages(),
         api.getNotifications(),
         api.getProperties(),
-        api.getUnits()
+        api.getUnits(),
+        api.getLandlordBankVerification()
       ]);
 
       if (agrsRes.success) setAgreements(agrsRes.agreements);
@@ -128,6 +132,7 @@ export default function App() {
       if (notifsRes.success) setNotifications(notifsRes.notifications);
       if (propsRes.success) setProperties(propsRes.properties);
       if (unitsRes.success) setUnits(unitsRes.units);
+      if (llRes?.success && llRes?.landlord) setLandlordProfile(llRes.landlord);
     } catch (err) {
       console.error('Failed to load user scoped data', err);
     }
@@ -501,7 +506,7 @@ export default function App() {
             users={users}
             onNavigate={setActiveTab}
             onNavigateAction={handleNotificationAction}
-            onOpenPayRent={(inv) => setPayingInvoice(inv)}
+            onOpenPayRent={!isAdmin ? (inv) => setPayingInvoice(inv) : null}
             onOpenAddProperty={() => {
               if (!isAdmin) {
                 alert('Access Denied: Only Landlord Administrator can list new properties.');
@@ -562,7 +567,7 @@ export default function App() {
             users={users}
             properties={properties}
             invoices={invoices}
-            onOpenPayRent={(inv) => setPayingInvoice(inv)}
+            onOpenPayRent={!isAdmin ? (inv) => setPayingInvoice(inv) : null}
             onVacateUnit={handleVacateUnit}
             onOpenCreateAgreement={(tenantId = null) => {
               if (!isAdmin) {
@@ -583,7 +588,9 @@ export default function App() {
             currentUser={currentUser}
             users={users}
             units={units}
-            onOpenPayRent={(inv) => setPayingInvoice(inv)}
+            landlordProfile={landlordProfile}
+            onUpdateLandlordProfile={(prof) => setLandlordProfile(prof)}
+            onOpenPayRent={!isAdmin ? (inv) => setPayingInvoice(inv) : null}
             onOpenHraReceipt={(inv) => setViewingHraReceipt(inv)}
             onSendRentReminders={handleSendRentReminders}
             onGenerateRentInvoice={handleGenerateRentInvoice}
@@ -688,6 +695,7 @@ export default function App() {
         <RentPaymentModal
           invoice={payingInvoice}
           currentUser={currentUser}
+          landlordProfile={landlordProfile}
           onClose={() => setPayingInvoice(null)}
           onPaySuccess={handlePayRent}
         />

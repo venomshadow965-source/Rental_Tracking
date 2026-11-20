@@ -1424,7 +1424,42 @@ app.post('/api/verify/upi-qr', (req, res) => {
 app.get('/api/landlord/bank-verification', (req, res) => {
   const db = readDb();
   if (!db.landlordSettlementProfile) {
-    db.landlordSettlementProfile = getVerifiedLandlordBankingProfile();
+    const adminUser = db.users.find(u => u.role === 'admin');
+    if (adminUser?.bankAccount) {
+      db.landlordSettlementProfile = {
+        landlordId: adminUser.id,
+        name: adminUser.name || 'Rajesh Sharma',
+        registeredLegalName: adminUser.bankAccount.verifiedName || adminUser.name || 'Rajesh Sharma',
+        pan: adminUser.pan || 'ABCPS1234F',
+        panStatus: 'VERIFIED_ACTIVE_NSDL',
+        bankAccount: {
+          bankName: adminUser.bankAccount.bankName || 'State Bank of India',
+          bankCode: (adminUser.bankAccount.ifsc || 'SBIN').slice(0, 4),
+          accountNumber: adminUser.bankAccount.accountNumber || '20394819287821',
+          maskedAccountNumber: adminUser.bankAccount.maskedAccountNumber || `•••• •••• ${(adminUser.bankAccount.accountNumber || '7821').slice(-4)}`,
+          accountType: 'Current / Rent Settlement Account',
+          ifsc: adminUser.bankAccount.ifsc || 'SBIN0000800',
+          branch: adminUser.bankAccount.branch || 'Bengaluru Main Branch',
+          city: 'Bengaluru',
+          micr: '560002002',
+          isVerified: true,
+          pennyDropStatus: 'ACTIVE',
+          pennyDropUtr: `IMPS/PENNY/${Date.now()}`
+        },
+        upi: {
+          vpa: adminUser.bankAccount.upiId || 'rajesh.landlord@okhdfcbank',
+          handle: (adminUser.bankAccount.upiId || 'rajesh.landlord@okhdfcbank').split('@')[1] || 'upi',
+          psp: adminUser.bankAccount.bankName || 'State Bank of India',
+          merchantName: adminUser.name || 'Rajesh Sharma',
+          registeredLegalName: adminUser.bankAccount.verifiedName || adminUser.name || 'Rajesh Sharma',
+          mcc: '6513',
+          isVerified: true,
+          status: 'OPERATIONAL_ACTIVE'
+        }
+      };
+    } else {
+      db.landlordSettlementProfile = getVerifiedLandlordBankingProfile();
+    }
     writeDb(db);
   }
   res.json({ success: true, landlord: db.landlordSettlementProfile });
