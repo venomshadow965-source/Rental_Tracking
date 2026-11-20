@@ -108,10 +108,12 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(400).json({ success: false, message: 'Please provide email/phone and password.' });
   }
 
-  // Find user by email or phone or ID
+  // Find user by email or phone or ID or login alias
   const cleanId = identifier.trim().toLowerCase();
   const user = db.users.find(u => 
     u.email.toLowerCase() === cleanId || 
+    (u.aliases && u.aliases.map(a => a.toLowerCase()).includes(cleanId)) ||
+    (u.id === 'usr_admin' && (cleanId === 'bidarahalliachyuta@gmail.com' || cleanId === 'rajesh.landlord@kirayasetu.in')) ||
     u.phone.replace(/\s+/g, '') === cleanId.replace(/\s+/g, '') ||
     u.id.toLowerCase() === cleanId
   );

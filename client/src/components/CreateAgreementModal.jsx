@@ -181,7 +181,7 @@ export default function CreateAgreementModal({
       tenantPhone,
       tenantEmail,
       tenantPermanentAddress,
-      landlordName: currentUser?.name || adminUser?.name || 'Rajesh Sharma',
+      landlordName: currentUser?.name || adminUser?.name || 'Achyuta Bidarahalli',
       landlordFatherName: 'Late O. P. Sharma',
       landlordAadhaar: currentUser?.aadhaar || adminUser?.aadhaar || '9876-5432-1098',
       landlordPan: currentUser?.pan || adminUser?.pan || 'ABCPS1234F',

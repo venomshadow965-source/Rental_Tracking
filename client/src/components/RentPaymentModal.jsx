@@ -31,7 +31,7 @@ import {
   Search,
   FileCheck
 } from 'lucide-react';
-import { api } from '../services/api';
+import { api, getSavedLandlordProfile, DEFAULT_LANDLORD_PROFILE } from '../services/api';
 
 // Realistic Web Audio API Soundbox Chime (Iconic Indian UPI Ding-Dong chime)
 const playUpiSuccessChime = () => {
@@ -123,7 +123,7 @@ export default function RentPaymentModal({
   const [showUpiAuditModal, setShowUpiAuditModal] = useState(false);
   const [verifyingPayerVpa, setVerifyingPayerVpa] = useState(false);
   const [payerVpaResult, setPayerVpaResult] = useState(null);
-  const [landlordProfile, setLandlordProfile] = useState(propLandlordProfile || null);
+  const [landlordProfile, setLandlordProfile] = useState(() => propLandlordProfile || getSavedLandlordProfile() || DEFAULT_LANDLORD_PROFILE);
 
   useEffect(() => {
     if (propLandlordProfile) {
@@ -141,7 +141,7 @@ export default function RentPaymentModal({
   const [payerVpa, setPayerVpa] = useState(
     currentUser?.name 
       ? `${currentUser.name.toLowerCase().replace(/\s+/g, '.')}@okhdfcbank` 
-      : 'priya.verma@okhdfcbank'
+      : 'jason.duval@okhdfcbank'
   );
   const [copiedUpi, setCopiedUpi] = useState(false);
   const [qrSecondsLeft, setQrSecondsLeft] = useState(300); // 5 minute countdown
@@ -171,16 +171,16 @@ export default function RentPaymentModal({
   if (!invoice) return null;
 
   // Dynamically resolve Landlord Real Settlement Profile (configured by landlord)
-  const landlordUpi = landlordProfile?.upi?.vpa || "rajesh.landlord@okhdfcbank";
-  const landlordName = landlordProfile?.registeredLegalName || landlordProfile?.name || "Rajesh Sharma";
-  const landlordRawAccount = landlordProfile?.bankAccount?.accountNumber || "20394819287821";
+  const landlordUpi = landlordProfile?.upi?.vpa || "bidarahalliachyuta@oksbi";
+  const landlordName = landlordProfile?.registeredLegalName || landlordProfile?.name || "Achyuta Bidarahalli";
+  const landlordRawAccount = landlordProfile?.bankAccount?.accountNumber || "37837268056";
   const landlordBank = {
     name: landlordName,
     bank: landlordProfile?.bankAccount?.bankName || "State Bank of India (SBI)",
     accountNumber: landlordRawAccount,
     maskedAccount: landlordProfile?.bankAccount?.maskedAccountNumber || `•••• •••• ${landlordRawAccount.slice(-4)}`,
-    ifsc: landlordProfile?.bankAccount?.ifsc || "SBIN0000800",
-    branch: landlordProfile?.bankAccount?.branch || "Bengaluru Main Branch",
+    ifsc: landlordProfile?.bankAccount?.ifsc || "SBIN0011821",
+    branch: landlordProfile?.bankAccount?.branch || "Branch 011821",
     accountType: landlordProfile?.bankAccount?.accountType || "Current / Rent Settlement Account"
   };
 

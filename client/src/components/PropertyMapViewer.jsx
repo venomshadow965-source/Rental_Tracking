@@ -194,7 +194,7 @@ export default function PropertyMapViewer({
         {/* Landlord Ownership Tag (Top-Right) */}
         <div className="absolute top-3 right-3 bg-white/95 backdrop-blur shadow-md border border-amber-300 rounded-xl px-2.5 py-1.5 text-[11px] font-bold text-amber-900 flex items-center space-x-1.5 pointer-events-none">
           <span>👑</span>
-          <span>Owned by {property.landlordName || (isMyProperty && currentUser?.name ? currentUser.name : 'Rajesh Sharma')}</span>
+          <span>Owned by {property.landlordName || (isMyProperty && currentUser?.name ? currentUser.name : 'Achyuta Bidarahalli')}</span>
         </div>
       </div>
 

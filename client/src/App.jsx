@@ -28,7 +28,15 @@ import GovReceiptModal from './components/GovReceiptModal';
 import PropertyMapModal from './components/PropertyMapModal';
 import EditLocationModal from './components/EditLocationModal';
 
-import { api, getSavedUserId, setSavedUserId, setSavedToken } from './services/api';
+import { 
+  api, 
+  getSavedUserId, 
+  setSavedUserId, 
+  setSavedToken,
+  getSavedLandlordProfile,
+  setSavedLandlordProfile,
+  DEFAULT_LANDLORD_PROFILE
+} from './services/api';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -65,7 +73,7 @@ export default function App() {
   const [viewingGovReceipt, setViewingGovReceipt] = useState(null);
   const [viewingMapProperty, setViewingMapProperty] = useState(null);
   const [editingLocationProperty, setEditingLocationProperty] = useState(null);
-  const [landlordProfile, setLandlordProfile] = useState(null);
+  const [landlordProfile, setLandlordProfile] = useState(() => getSavedLandlordProfile() || DEFAULT_LANDLORD_PROFILE);
 
   // Initial Load
   useEffect(() => {

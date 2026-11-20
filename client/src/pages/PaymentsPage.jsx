@@ -35,7 +35,7 @@ import {
   Plus,
   RefreshCw
 } from 'lucide-react';
-import { api } from '../services/api';
+import { api, getSavedLandlordProfile, setSavedLandlordProfile, DEFAULT_LANDLORD_PROFILE } from '../services/api';
 
 export default function PaymentsPage({
   invoices = [],
@@ -85,7 +85,7 @@ export default function PaymentsPage({
   const [inspectedInvoiceProof, setInspectedInvoiceProof] = useState(null);
 
   // Landlord Real Settlement Profile State (Editable for real bank & UPI transactions)
-  const [landlordProfile, setLandlordProfile] = useState(propLandlordProfile || null);
+  const [landlordProfile, setLandlordProfile] = useState(() => propLandlordProfile || getSavedLandlordProfile() || DEFAULT_LANDLORD_PROFILE);
   const [isEditingLandlordProfile, setIsEditingLandlordProfile] = useState(false);
   const [editName, setEditName] = useState('');
   const [editUpiId, setEditUpiId] = useState('');
@@ -114,6 +114,7 @@ export default function PaymentsPage({
         const res = await api.getLandlordBankVerification();
         if (isMounted && res.success && res.landlord) {
           setLandlordProfile(res.landlord);
+          setSavedLandlordProfile(res.landlord);
           if (onUpdateLandlordProfile) onUpdateLandlordProfile(res.landlord);
         }
       } catch (err) {
@@ -125,12 +126,12 @@ export default function PaymentsPage({
   }, [currentUser?.id]);
 
   const handleStartEditLandlordProfile = () => {
-    setEditName(landlordProfile?.registeredLegalName || landlordProfile?.name || 'Rajesh Sharma');
-    setEditUpiId(landlordProfile?.upi?.vpa || 'rajesh.landlord@okhdfcbank');
+    setEditName(landlordProfile?.registeredLegalName || landlordProfile?.name || 'Achyuta Bidarahalli');
+    setEditUpiId(landlordProfile?.upi?.vpa || 'bidarahalliachyuta@oksbi');
     setEditBankName(landlordProfile?.bankAccount?.bankName || 'State Bank of India (SBI)');
-    setEditAccountNumber(landlordProfile?.bankAccount?.accountNumber || '20394819287821');
-    setEditIfsc(landlordProfile?.bankAccount?.ifsc || 'SBIN0000800');
-    setEditBranch(landlordProfile?.bankAccount?.branch || 'Bengaluru Main Branch');
+    setEditAccountNumber(landlordProfile?.bankAccount?.accountNumber || '37837268056');
+    setEditIfsc(landlordProfile?.bankAccount?.ifsc || 'SBIN0011821');
+    setEditBranch(landlordProfile?.bankAccount?.branch || 'Branch 011821');
     setEditPan(landlordProfile?.pan || 'ABCPS1234F');
     setProfileSuccessMsg('');
     setProfileErrorMsg('');
@@ -187,6 +188,7 @@ export default function PaymentsPage({
 
       if (res.success && res.landlord) {
         setLandlordProfile(res.landlord);
+        setSavedLandlordProfile(res.landlord);
         if (onUpdateLandlordProfile) onUpdateLandlordProfile(res.landlord);
         setProfileSuccessMsg('🎉 Real Bank Account & UPI ID linked successfully! All tenant QR codes and mobile UPI links are now updated.');
         setTimeout(() => {
@@ -496,15 +498,15 @@ export default function PaymentsPage({
               </div>
               
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-emerald-100 pt-0.5">
-                <div>Landlord Payee: <strong className="text-white">{landlordProfile?.registeredLegalName || landlordProfile?.name || 'RAJESH SHARMA'}</strong></div>
+                <div>Landlord Payee: <strong className="text-white">{landlordProfile?.registeredLegalName || landlordProfile?.name || 'ACHYUTA BIDARAHALLI'}</strong></div>
                 <div className="text-emerald-500">•</div>
-                <div>Bank: <strong className="text-white">{landlordProfile?.bankAccount?.bankName || 'State Bank of India'} ({landlordProfile?.bankAccount?.branch || 'Main Branch'})</strong></div>
+                <div>Bank: <strong className="text-white">{landlordProfile?.bankAccount?.bankName || 'State Bank of India (SBI)'} ({landlordProfile?.bankAccount?.branch || 'Branch 011821'})</strong></div>
                 <div className="text-emerald-500">•</div>
-                <div>A/c: <strong className="font-mono text-emerald-200">{landlordProfile?.bankAccount?.accountNumber || '20394819287821'}</strong> ({landlordProfile?.bankAccount?.maskedAccountNumber || '•••• 7821'})</div>
+                <div>A/c: <strong className="font-mono text-emerald-200">{landlordProfile?.bankAccount?.accountNumber || '37837268056'}</strong> ({landlordProfile?.bankAccount?.maskedAccountNumber || '•••• 8056'})</div>
                 <div className="text-emerald-500">•</div>
-                <div>IFSC: <strong className="font-mono text-emerald-200">{landlordProfile?.bankAccount?.ifsc || 'SBIN0000800'}</strong></div>
+                <div>IFSC: <strong className="font-mono text-emerald-200">{landlordProfile?.bankAccount?.ifsc || 'SBIN0011821'}</strong></div>
                 <div className="text-emerald-500">•</div>
-                <div>UPI ID: <strong className="font-mono text-emerald-200">{landlordProfile?.upi?.vpa || 'rajesh.landlord@okhdfcbank'}</strong></div>
+                <div>UPI ID: <strong className="font-mono text-emerald-200">{landlordProfile?.upi?.vpa || 'bidarahalliachyuta@oksbi'}</strong></div>
               </div>
             </div>
 
@@ -1641,7 +1643,7 @@ export default function PaymentsPage({
                     <div>
                       <span className="text-[10px] uppercase tracking-wider text-emerald-700 font-bold block">Verified Landlord Legal Entity</span>
                       <div className="text-sm font-black text-slate-900 flex items-center space-x-1.5">
-                        <span>{landlordProfile?.registeredLegalName || landlordProfile?.name || 'RAJESH SHARMA'}</span>
+                        <span>{landlordProfile?.registeredLegalName || landlordProfile?.name || 'ACHYUTA BIDARAHALLI'}</span>
                         <BadgeCheck className="w-4 h-4 text-emerald-600 fill-current" />
                       </div>
                       <span className="text-[11px] text-slate-500">Property Owner & Settlement Recipient</span>
@@ -1657,18 +1659,18 @@ export default function PaymentsPage({
                   <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden bg-slate-50/50">
                     <div className="p-3 flex justify-between items-center">
                       <span className="text-slate-500">Core Banking Settlement:</span>
-                      <strong className="text-slate-900">{landlordProfile?.bankAccount?.bankName || 'State Bank of India'}</strong>
+                      <strong className="text-slate-900">{landlordProfile?.bankAccount?.bankName || 'State Bank of India (SBI)'}</strong>
                     </div>
                     <div className="p-3 flex justify-between items-center">
                       <span className="text-slate-500">Settlement A/c Number:</span>
                       <strong className="font-mono text-slate-900">
-                        {landlordProfile?.bankAccount?.accountNumber || '20394819287821'} ({landlordProfile?.bankAccount?.maskedAccountNumber || '•••• 7821'})
+                        {landlordProfile?.bankAccount?.accountNumber || '37837268056'} ({landlordProfile?.bankAccount?.maskedAccountNumber || '•••• 8056'})
                       </strong>
                     </div>
                     <div className="p-3 flex justify-between items-center">
                       <span className="text-slate-500">IFSC & Branch:</span>
                       <strong className="font-mono text-slate-900">
-                        {landlordProfile?.bankAccount?.ifsc || 'SBIN0000800'} ({landlordProfile?.bankAccount?.branch || 'Bengaluru Main Branch'})
+                        {landlordProfile?.bankAccount?.ifsc || 'SBIN0011821'} ({landlordProfile?.bankAccount?.branch || 'Branch 011821'})
                       </strong>
                     </div>
                     <div className="p-3 flex justify-between items-center">
@@ -1681,7 +1683,7 @@ export default function PaymentsPage({
                     <div className="p-3 flex justify-between items-center">
                       <span className="text-slate-500">Active UPI ID / VPA:</span>
                       <strong className="font-mono text-emerald-800 text-xs bg-emerald-100/70 px-2 py-0.5 rounded">
-                        {landlordProfile?.upi?.vpa || 'rajesh.landlord@okhdfcbank'}
+                        {landlordProfile?.upi?.vpa || 'bidarahalliachyuta@oksbi'}
                       </strong>
                     </div>
                     <div className="p-3 flex justify-between items-center">

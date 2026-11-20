@@ -101,6 +101,20 @@ export const KNOWN_IFSC_DIRECTORY = {
     neft: true,
     imps: true,
     upi: true
+  },
+  'SBIN0011821': {
+    bankName: 'State Bank of India',
+    bankCode: 'SBIN',
+    branch: 'Branch 011821',
+    address: 'Authorized RBI Scheduled Commercial Banking Branch',
+    city: 'Bengaluru',
+    district: 'Bengaluru Urban',
+    state: 'Karnataka',
+    micr: '560312645',
+    rtgs: true,
+    neft: true,
+    imps: true,
+    upi: true
   }
 };
 
@@ -371,10 +385,14 @@ export function verifyUpiVpa(vpa) {
   let category = 'Individual (P2P / P2M)';
   let mcc = '0000';
 
-  if (cleanVpa === 'rajesh.landlord@okhdfcbank' || username.includes('rajesh') || username.includes('landlord')) {
-    registeredLegalName = 'RAJESH SHARMA';
+  if (cleanVpa === 'bidarahalliachyuta@oksbi' || cleanVpa === 'rajesh.landlord@okhdfcbank' || username.includes('achyuta') || username.includes('bidarahalli') || username.includes('rajesh') || username.includes('landlord')) {
+    registeredLegalName = (cleanVpa.includes('achyuta') || cleanVpa.includes('bidarahalli')) ? 'ACHYUTA BIDARAHALLI' : 'RAJESH SHARMA';
     category = 'Residential Real Estate / Property Rent Beneficiary';
     mcc = '6513';
+  } else if (cleanVpa.includes('jason') || username.includes('jason')) {
+    registeredLegalName = 'JASON DUVAL';
+    category = 'Verified Tenant Payer';
+    mcc = '0000';
   } else if (cleanVpa.includes('priya') || username.includes('priya')) {
     registeredLegalName = 'PRIYA VERMA';
     category = 'Verified Tenant Payer';
@@ -501,40 +519,39 @@ export function verifyUpiQrPayload(payloadString) {
 }
 
 /**
- * Return Verified Landlord Profile (Rajesh Sharma)
+ * Return Verified Landlord Profile (Default: Achyuta Bidarahalli)
  */
 export function getVerifiedLandlordBankingProfile() {
-  const ifscDetails = validateIfsc('SBIN0000800');
-  const vpaDetails = verifyUpiVpa('rajesh.landlord@okhdfcbank');
+  const ifscDetails = validateIfsc('SBIN0011821');
 
   return {
     landlordId: 'usr_admin',
-    name: 'Rajesh Sharma',
-    registeredLegalName: 'RAJESH SHARMA',
+    name: 'Achyuta Bidarahalli',
+    registeredLegalName: 'ACHYUTA BIDARAHALLI',
     pan: 'ABCPS1234F',
     panStatus: 'VERIFIED_ACTIVE_NSDL',
     bankAccount: {
-      bankName: 'State Bank of India',
+      bankName: 'State Bank of India (SBI)',
       bankCode: 'SBIN',
-      accountNumber: '20394819287821',
-      maskedAccountNumber: '•••• •••• 7821',
+      accountNumber: '37837268056',
+      maskedAccountNumber: '•••• •••• 8056',
       accountType: 'Current / Rent Settlement Account',
-      ifsc: 'SBIN0000800',
-      branch: ifscDetails.branch,
-      city: ifscDetails.city,
-      micr: ifscDetails.micr,
+      ifsc: 'SBIN0011821',
+      branch: ifscDetails.branch || 'Branch 011821',
+      city: ifscDetails.city || 'Bengaluru',
+      micr: ifscDetails.micr || '560312645',
       isVerified: true,
       pennyDropStatus: 'ACTIVE',
-      pennyDropUtr: 'IMPS/PENNY/481920491820',
-      pennyDropDate: '2026-05-01T09:30:00Z',
+      pennyDropUtr: 'IMPS/PENNY/1795152981212',
+      pennyDropDate: '2026-11-20T05:36:21.213Z',
       verifiedBy: 'RBI Core Banking Switch (CBS)'
     },
     upi: {
-      vpa: 'rajesh.landlord@okhdfcbank',
-      handle: 'okhdfcbank',
-      psp: 'HDFC Bank Limited',
-      merchantName: 'Rajesh Sharma',
-      registeredLegalName: 'RAJESH SHARMA',
+      vpa: 'bidarahalliachyuta@oksbi',
+      handle: 'oksbi',
+      psp: 'State Bank of India',
+      merchantName: 'Achyuta Bidarahalli',
+      registeredLegalName: 'ACHYUTA BIDARAHALLI',
       mcc: '6513',
       mccCategory: 'Real Estate / Residential Property Rental',
       isVerified: true,
@@ -545,8 +562,8 @@ export function getVerifiedLandlordBankingProfile() {
       isFullyVerified: true,
       tier: 'Level 3 - Enterprise Certified Landlord',
       taxExemptionReceiptsEligible: true,
-      auditReference: 'RBI-KYC-2026-BLR-8921',
-      lastAuditedAt: '2026-11-01T00:00:00Z'
+      auditReference: 'RBI-KYC-981213',
+      lastAuditedAt: '2026-11-20T05:36:21.213Z'
     }
   };
 }

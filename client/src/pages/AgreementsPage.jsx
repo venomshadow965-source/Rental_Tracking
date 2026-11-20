@@ -291,7 +291,7 @@ export default function AgreementsPage({
                 <div className="grid grid-cols-2 gap-2 text-[11px]">
                   <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-800 flex items-center space-x-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span>Lessor: Rajesh Sharma (Signed)</span>
+                    <span>Lessor: {agreement.landlordName || 'Achyuta Bidarahalli'} (Signed)</span>
                   </div>
                   <div className={`p-2 rounded-lg border flex items-center space-x-1.5 ${
                     agreement.tenantSigned

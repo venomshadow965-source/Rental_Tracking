@@ -429,7 +429,7 @@ export default function ReportDamageModal({
         {/* Footer */}
         <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl flex items-center justify-between">
           <p className="text-xs text-slate-500">
-            Landlord Rajesh Sharma will be notified immediately upon submission.
+            The property landlord will be notified immediately upon submission.
           </p>
           <div className="flex items-center space-x-3">
             <button
