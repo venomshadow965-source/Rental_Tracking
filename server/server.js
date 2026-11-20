@@ -1811,14 +1811,11 @@ app.post('/api/rent/simulate-upi-scan', (req, res) => {
     id: `notif_${Date.now() + 1}`,
     userId: invoice.tenantId,
     title: 'UPI Rent Payment Successful',
-    message: `Payment of ₹${invoice.totalAmount.toLocaleString('en-IN')} for ${invoice.billingMonth} credited to Landlord ${profile?.registeredLegalName || profile?.name} via ${upiApp}. NPCI RRN: ${npciRrn}. Official HRA receipt generated.`,
+    message: `Payment of ₹${invoice.totalAmount.toLocaleString('en-IN')} for ${invoice.billingMonth} credited to Landlord ${profile?.registeredLegalName || profile?.name || 'Achyuta Bidarahalli'} via ${upiApp}. NPCI RRN: ${npciRrn}. Official HRA receipt generated.`,
     type: 'payment_success',
     severity: 'success',
     read: false,
     createdAt: now,
-    actionUrl: '/payments',
-    actionText: 'Download HRA Receipt'
-  });
     actionUrl: '/payments',
     actionText: 'Download HRA Receipt'
   });
@@ -1829,7 +1826,7 @@ app.post('/api/rent/simulate-upi-scan', (req, res) => {
     success: true,
     invoice,
     npciRrn,
-    soundboxText: `₹${invoice.totalAmount.toLocaleString('en-IN')} received on KirayaSetu UPI for Rajesh Sharma`,
+    soundboxText: `₹${invoice.totalAmount.toLocaleString('en-IN')} received on KirayaSetu UPI for ${profile?.registeredLegalName || profile?.name || 'Achyuta Bidarahalli'}`,
     message: `Payment of ₹${invoice.totalAmount.toLocaleString('en-IN')} confirmed in real time by NPCI UPI Gateway!`
   });
 });
