@@ -26,7 +26,9 @@
         "rbiRecognized": true,
         "upiVerified": true,
         "vpa": "rajesh.landlord@okhdfcbank",
-        "mcc": "6513"
+        "mcc": "6513",
+        "settledBalance": 49000,
+        "lastSettledAt": "2026-11-23T04:54:30.962Z"
       },
       "bankAccounts": [
         {
@@ -1185,7 +1187,7 @@
       "propertyId": "prop_1",
       "propertyName": "Palm Heights Apartments",
       "landlordId": "usr_admin",
-      "landlordName": "Rajesh Sharma",
+      "landlordName": "RAJESH SHARMA",
       "landlordPan": "ABCPS1234F",
       "tenantId": "usr_tenant_1",
       "tenantName": "Priya Verma",
@@ -1205,8 +1207,19 @@
       "paidAt": null,
       "paymentMethod": null,
       "transactionRef": null,
-      "receiptNumber": null,
-      "bankDetails": null
+      "receiptNumber": "RCT-NOVEMBER-2026-302",
+      "bankDetails": null,
+      "upiDetails": null,
+      "landlordSettlement": {
+        "name": "RAJESH SHARMA",
+        "bankName": "State Bank of India (SBI)",
+        "accountNumber": "20394819287821",
+        "maskedAccountNumber": "•••• •••• 7821",
+        "ifsc": "SBIN0000800",
+        "branch": "Bengaluru Main Branch",
+        "upiId": "rajesh.landlord@okhdfcbank",
+        "pan": "ABCPS1234F"
+      }
     },
     {
       "id": "inv_2026_11_usr_tenant_2",
@@ -1230,16 +1243,13 @@
       "totalAmount": 16500,
       "issueDate": "2026-11-01",
       "dueDate": "2026-11-20",
-      "status": "paid",
-      "paidAt": "2026-11-05T10:20:00Z",
-      "paymentMethod": "Direct Bank Account (State Bank of India (SBI) •••• 6120)",
-      "transactionRef": "UTR/SBI/202611/452439",
+      "status": "unpaid",
+      "paidAt": null,
+      "paymentMethod": null,
+      "transactionRef": null,
       "receiptNumber": "RCT-NOVEMBER-2026-104",
-      "bankDetails": {
-        "bankName": "State Bank of India (SBI)",
-        "accountNumber": "•••• 6120",
-        "mode": "Direct Bank Account (IMPS Real-Time)"
-      }
+      "bankDetails": null,
+      "upiDetails": null
     },
     {
       "id": "inv_2026_11_usr_tenant_1794819900742",
@@ -1263,26 +1273,13 @@
       "totalAmount": 45000,
       "issueDate": "2026-11-01",
       "dueDate": "2026-11-20",
-      "status": "paid",
-      "paidAt": "2026-11-17T09:02:46.304Z",
-      "paymentMethod": "Instant UPI (Google Pay)",
-      "transactionRef": "UPI/NPCI/713239614261",
+      "status": "unpaid",
+      "paidAt": null,
+      "paymentMethod": null,
+      "transactionRef": null,
       "receiptNumber": "RCT-NOVEMBER-2026-01",
-      "bankDetails": {
-        "bankName": "HDFC Bank",
-        "accountNumber": "•••• 4092",
-        "mode": "Direct Bank Account (IMPS Real-Time Settlement)"
-      },
-      "upiDetails": {
-        "upiApp": "Google Pay",
-        "payerVpa": "rohan.mehta@okhdfcbank",
-        "payeeVpa": "rajesh.landlord@okhdfcbank",
-        "payeeName": "Rajesh Sharma",
-        "npciRrn": "713239614261",
-        "settlementRail": "NPCI UPI 2.0 Real-Time Switch",
-        "status": "CREDITED",
-        "settlementBank": "State Bank of India (SBI)"
-      }
+      "bankDetails": null,
+      "upiDetails": null
     },
     {
       "id": "inv_2026_10_usr_tenant_1",
@@ -2574,6 +2571,54 @@
   ],
   "notifications": [
     {
+      "id": "notif_1795409670963_w3yz",
+      "userId": "usr_tenant_1",
+      "title": "UPI Rent Payment Successful & Receipt Ready",
+      "message": "Payment of ₹24,500 for November 2026 transferred directly to Landlord RAJESH SHARMA's account (•••• •••• 7821). UTR: UTR/HDFC/09670962/6760. Official HRA receipt generated.",
+      "type": "payment_success",
+      "severity": "success",
+      "read": false,
+      "createdAt": "2026-11-23T04:54:30.962Z",
+      "actionUrl": "/payments",
+      "actionText": "Download HRA Receipt"
+    },
+    {
+      "id": "notif_1795409670962_s1w1",
+      "userId": "usr_admin",
+      "title": "🟢 Real-Time Rent Payment Received",
+      "message": "₹24,500 received via UPI from Priya Verma for November 2026 credited directly into your State Bank of India (SBI) account (•••• •••• 7821). UTR: UTR/HDFC/09670962/6760.",
+      "type": "rent_paid",
+      "severity": "success",
+      "read": false,
+      "createdAt": "2026-11-23T04:54:30.962Z",
+      "actionUrl": "/payments",
+      "actionText": "View in Calendar"
+    },
+    {
+      "id": "notif_1795409670920_4fm2",
+      "userId": "usr_tenant_1",
+      "title": "UPI Rent Payment Successful & Receipt Ready",
+      "message": "Payment of ₹24,500 for November 2026 transferred directly to Landlord RAJESH SHARMA's account (•••• •••• 7821). UTR: UPI/NPCI/493318060361. Official HRA receipt generated.",
+      "type": "payment_success",
+      "severity": "success",
+      "read": false,
+      "createdAt": "2026-11-23T04:54:30.526Z",
+      "actionUrl": "/payments",
+      "actionText": "Download HRA Receipt"
+    },
+    {
+      "id": "notif_1795409670526_08ku",
+      "userId": "usr_admin",
+      "title": "🟢 Real-Time Rent Payment Received",
+      "message": "₹24,500 received via UPI from Priya Verma for November 2026 credited directly into your State Bank of India (SBI) account (•••• •••• 7821). UTR: UPI/NPCI/493318060361.",
+      "type": "rent_paid",
+      "severity": "success",
+      "read": false,
+      "createdAt": "2026-11-23T04:54:30.526Z",
+      "actionUrl": "/payments",
+      "actionText": "View in Calendar"
+    },
+    {
       "id": "notif_1794906166305",
       "userId": "usr_tenant_1794819900742",
       "title": "Rent Debited & Receipt Ready",
@@ -3106,6 +3151,46 @@
       "taxExemptionReceiptsEligible": true,
       "auditReference": "RBI-KYC-981213",
       "lastAuditedAt": "2026-11-20T05:36:21.213Z"
-    }
+    },
+    "settledBalance": 49000,
+    "lastSettledAt": "2026-11-23T04:54:30.962Z",
+    "recentSettlements": [
+      {
+        "id": "stl_1795409670962_2466",
+        "invoiceId": "inv_2026_11_usr_tenant_1",
+        "amount": 24500,
+        "tenantName": "Priya Verma",
+        "unitNumber": "Flat 302",
+        "propertyName": "Palm Heights Apartments",
+        "billingMonth": "November 2026",
+        "utr": "UTR/HDFC/09670962/6760",
+        "method": "Direct Bank Debit",
+        "creditedToBank": "State Bank of India (SBI)",
+        "accountNumber": "20394819287821",
+        "maskedAccountNumber": "•••• •••• 7821",
+        "ifsc": "SBIN0000800",
+        "settledAt": "2026-11-23T04:54:30.962Z",
+        "status": "SETTLED_INSTANT_CREDIT",
+        "settlementRail": "NPCI IMPS / UPI 2.0 Core Banking Switch"
+      },
+      {
+        "id": "stl_1795409670526_1174",
+        "invoiceId": "inv_2026_11_usr_tenant_1",
+        "amount": 24500,
+        "tenantName": "Priya Verma",
+        "unitNumber": "Flat 302",
+        "propertyName": "Palm Heights Apartments",
+        "billingMonth": "November 2026",
+        "utr": "UPI/NPCI/493318060361",
+        "method": "Instant UPI (Google Pay)",
+        "creditedToBank": "State Bank of India (SBI)",
+        "accountNumber": "20394819287821",
+        "maskedAccountNumber": "•••• •••• 7821",
+        "ifsc": "SBIN0000800",
+        "settledAt": "2026-11-23T04:54:30.526Z",
+        "status": "SETTLED_INSTANT_CREDIT",
+        "settlementRail": "NPCI IMPS / UPI 2.0 Core Banking Switch"
+      }
+    ]
   }
 }

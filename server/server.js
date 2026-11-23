@@ -1834,6 +1834,32 @@ app.post('/api/rent/send-reminders', (req, res) => {
   res.json({ success: true, count: sentCount, message: `Sent rent payment reminder notifications to ${sentCount} tenant(s).` });
 });
 
+// Reset rent invoices to unpaid for testing real-time scan and pay
+app.post('/api/rent/reset-invoices', (req, res) => {
+  const db = readDb();
+  const { invoiceId, month = 'November 2026' } = req.body || {};
+
+  let resetCount = 0;
+  db.rentInvoices.forEach(inv => {
+    if (invoiceId ? inv.id === invoiceId : (!month || inv.billingMonth === month)) {
+      inv.status = 'unpaid';
+      inv.paidAt = null;
+      inv.paymentMethod = null;
+      inv.transactionRef = null;
+      inv.bankDetails = null;
+      inv.upiDetails = null;
+      resetCount++;
+    }
+  });
+
+  writeDb(db);
+  res.json({
+    success: true,
+    resetCount,
+    message: `Successfully reset ${resetCount} rent invoices to unpaid for real-time payment testing.`
+  });
+});
+
 /* ========================================================
    GOVERNMENT METERS & UTILITY BILLS (Electricity & Water)
    Bharat BillPay (BBPS) & Live DISCOM Integration Protocols

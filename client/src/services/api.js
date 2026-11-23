@@ -73,8 +73,7 @@ export function getSavedLandlordProfile() {
     const raw = localStorage.getItem('kirayasetu_landlord_profile');
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (!parsed?.bankAccount?.accountNumber || parsed.bankAccount.accountNumber !== '20394819287821') {
-        localStorage.removeItem('kirayasetu_landlord_profile');
+      if (!parsed?.bankAccount?.accountNumber) {
         return DEFAULT_LANDLORD_PROFILE;
       }
       return parsed;
@@ -345,6 +344,15 @@ export const api = {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({ invoiceId, upiApp, payerVpa })
+    });
+    return res.json();
+  },
+
+  async resetRentInvoices(invoiceId = null, month = 'November 2026') {
+    const res = await fetch(`${API_BASE}/rent/reset-invoices`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ invoiceId, month })
     });
     return res.json();
   },

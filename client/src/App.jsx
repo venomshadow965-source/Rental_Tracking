@@ -273,16 +273,43 @@ export default function App() {
 
   // Action: Pay Rent
   const handlePayRent = async (invoiceId, paymentMethod, transactionRef, bankDetailsOrInvoice = null) => {
+    let resultInv = bankDetailsOrInvoice;
     if (bankDetailsOrInvoice && bankDetailsOrInvoice.status === 'paid') {
       // Already settled by server (e.g. via confirmUpiPayment, simulateUpiScan, or direct bank transfer)
       setInvoices(prev => prev.map(i => i.id === invoiceId ? bankDetailsOrInvoice : i));
-      const notifsRes = await api.getNotifications();
-      if (notifsRes.success) setNotifications(notifsRes.notifications);
-      return { success: true, invoice: bankDetailsOrInvoice };
+    } else {
+      const res = await api.payRent(invoiceId, paymentMethod, transactionRef, bankDetailsOrInvoice);
+      if (res.success) {
+        resultInv = res.invoice;
+        setInvoices(prev => prev.map(i => i.id === invoiceId ? res.invoice : i));
+      }
     }
-    const res = await api.payRent(invoiceId, paymentMethod, transactionRef, bankDetailsOrInvoice);
+    const notifsRes = await api.getNotifications();
+    if (notifsRes.success) setNotifications(notifsRes.notifications);
+    // Refresh landlord real-time balance
+    try {
+      const bankRes = await api.getLandlordBankVerification();
+      if (bankRes?.success && bankRes?.landlord) {
+        setLandlordProfile(bankRes.landlord);
+      }
+    } catch (e) {
+      // silent
+    }
+    return { success: true, invoice: resultInv };
+  };
+
+  // Action: Reset Rent Invoices to Unpaid for Test Scan & Pay
+  const handleResetRentInvoices = async (invoiceId = null) => {
+    const res = await api.resetRentInvoices(invoiceId, 'November 2026');
     if (res.success) {
-      setInvoices(prev => prev.map(i => i.id === invoiceId ? res.invoice : i));
+      const invRes = await api.getRentInvoices();
+      if (invRes.success) {
+        setInvoices(invRes.invoices);
+        if (payingInvoice) {
+          const updatedTarget = invRes.invoices.find(i => i.id === payingInvoice.id);
+          if (updatedTarget) setPayingInvoice(updatedTarget);
+        }
+      }
       const notifsRes = await api.getNotifications();
       if (notifsRes.success) setNotifications(notifsRes.notifications);
     }
@@ -519,7 +546,7 @@ export default function App() {
             users={users}
             onNavigate={setActiveTab}
             onNavigateAction={handleNotificationAction}
-            onOpenPayRent={!isAdmin ? (inv) => setPayingInvoice(inv) : null}
+            onOpenPayRent={(inv) => setPayingInvoice(inv)}
             onOpenAddProperty={() => {
               if (!isAdmin) {
                 alert('Access Denied: Only Landlord Administrator can list new properties.');
@@ -580,7 +607,7 @@ export default function App() {
             users={users}
             properties={properties}
             invoices={invoices}
-            onOpenPayRent={!isAdmin ? (inv) => setPayingInvoice(inv) : null}
+            onOpenPayRent={(inv) => setPayingInvoice(inv)}
             onVacateUnit={handleVacateUnit}
             onOpenCreateAgreement={(tenantId = null) => {
               if (!isAdmin) {
@@ -603,10 +630,11 @@ export default function App() {
             units={units}
             landlordProfile={landlordProfile}
             onUpdateLandlordProfile={(prof) => setLandlordProfile(prof)}
-            onOpenPayRent={!isAdmin ? (inv) => setPayingInvoice(inv) : null}
+            onOpenPayRent={(inv) => setPayingInvoice(inv)}
             onOpenHraReceipt={(inv) => setViewingHraReceipt(inv)}
             onSendRentReminders={handleSendRentReminders}
             onGenerateRentInvoice={handleGenerateRentInvoice}
+            onResetRentInvoices={handleResetRentInvoices}
           />
         )}
 
@@ -711,6 +739,7 @@ export default function App() {
           landlordProfile={landlordProfile}
           onClose={() => setPayingInvoice(null)}
           onPaySuccess={handlePayRent}
+          onResetInvoice={handleResetRentInvoices}
         />
       )}
 

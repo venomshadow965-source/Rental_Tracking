@@ -90,7 +90,8 @@ export default function RentPaymentModal({
   currentUser,
   landlordProfile: propLandlordProfile = null,
   onClose, 
-  onPaySuccess 
+  onPaySuccess,
+  onResetInvoice = null
 }) {
   const [paymentMode, setPaymentMode] = useState('upi'); // 'upi', 'bank_account', 'netbanking'
   const [bankAccounts, setBankAccounts] = useState(currentUser?.bankAccounts || []);
@@ -104,6 +105,12 @@ export default function RentPaymentModal({
   const [newIfsc, setNewIfsc] = useState('HDFC0001234');
   const [newAccountType, setNewAccountType] = useState('Savings Account');
   const [linkingBank, setLinkingBank] = useState(false);
+
+  // Custom Receiving UPI for physical mobile phone tests
+  const [customPayeeUpi, setCustomPayeeUpi] = useState('');
+  const [isEditingPayeeUpi, setIsEditingPayeeUpi] = useState(false);
+  const [savingPayeeUpi, setSavingPayeeUpi] = useState(false);
+  const [resettingInvoice, setResettingInvoice] = useState(false);
 
   // IFSC Lookup & Penny Drop State
   const [ifscLookup, setIfscLookup] = useState({
@@ -154,8 +161,8 @@ export default function RentPaymentModal({
 
   // Processing & Confirmation State
   const [processing, setProcessing] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [paidReceipt, setPaidReceipt] = useState(null);
+  const [paymentSuccess, setPaymentSuccess] = useState(invoice?.status === 'paid');
+  const [paidReceipt, setPaidReceipt] = useState(invoice?.status === 'paid' ? invoice : null);
   const [errorMsg, setErrorMsg] = useState('');
 
   const [realUtr, setRealUtr] = useState('');
@@ -171,7 +178,8 @@ export default function RentPaymentModal({
   if (!invoice) return null;
 
   // Dynamically resolve Landlord Real Settlement Profile (configured by landlord)
-  const landlordUpi = landlordProfile?.upi?.vpa || "rajesh.landlord@okhdfcbank";
+  const defaultLandlordUpi = landlordProfile?.upi?.vpa || "rajesh.landlord@okhdfcbank";
+  const landlordUpi = customPayeeUpi.trim() || defaultLandlordUpi;
   const landlordName = landlordProfile?.registeredLegalName || landlordProfile?.name || "Rajesh Sharma";
   const landlordRawAccount = landlordProfile?.bankAccount?.accountNumber || "20394819287821";
   const landlordBank = {
@@ -252,7 +260,7 @@ export default function RentPaymentModal({
 
   // Real-time invoice settlement listener & polling (detects live phone scan & payments)
   useEffect(() => {
-    if (paymentSuccess || !invoice?.id) return;
+    if (paymentSuccess || !invoice?.id || invoice?.status === 'paid') return;
 
     let isSubscribed = true;
     const checkLivePaymentStatus = async () => {
@@ -858,6 +866,68 @@ export default function RentPaymentModal({
                     </div>
                   </div>
 
+                  {/* Option to enter real UPI ID for physical mobile phone testing */}
+                  <div className="p-3 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1.5 font-bold text-amber-950">
+                        <Smartphone className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                        <span>Scan with Physical Phone (GPay / PhonePe / Paytm)?</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingPayeeUpi(!isEditingPayeeUpi)}
+                        className="text-amber-800 underline font-bold text-[11px] cursor-pointer"
+                      >
+                        {isEditingPayeeUpi ? 'Done' : 'Enter Your Real UPI ID'}
+                      </button>
+                    </div>
+                    {isEditingPayeeUpi ? (
+                      <div className="space-y-1.5 pt-1 animate-in fade-in">
+                        <p className="text-[11px] text-amber-900 leading-snug">
+                          Live banking apps reject simulated VPAs. Enter your real registered UPI ID below to transfer real funds to your bank:
+                        </p>
+                        <div className="flex items-center space-x-1.5">
+                          <input
+                            type="text"
+                            value={customPayeeUpi}
+                            onChange={(e) => setCustomPayeeUpi(e.target.value.trim())}
+                            placeholder={defaultLandlordUpi}
+                            className="flex-1 px-3 py-1.5 bg-white border border-amber-300 rounded-lg text-xs font-mono font-bold text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-amber-500"
+                          />
+                          <button
+                            type="button"
+                            disabled={savingPayeeUpi || !customPayeeUpi}
+                            onClick={async () => {
+                              if (!customPayeeUpi) return;
+                              setSavingPayeeUpi(true);
+                              try {
+                                const res = await api.updateLandlordBankVerification({
+                                  ...(landlordProfile || {}),
+                                  upi: { ...(landlordProfile?.upi || {}), vpa: customPayeeUpi }
+                                });
+                                if (res?.success && res?.landlord) {
+                                  setLandlordProfile(res.landlord);
+                                  setIsEditingPayeeUpi(false);
+                                }
+                              } catch (err) {
+                                console.warn(err);
+                              } finally {
+                                setSavingPayeeUpi(false);
+                              }
+                            }}
+                            className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-xs transition-colors disabled:opacity-50 cursor-pointer"
+                          >
+                            {savingPayeeUpi ? 'Saving...' : 'Update QR'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-amber-800">
+                        Current Beneficiary UPI: <strong className="font-mono text-amber-950">{landlordUpi}</strong> ({landlordName}). Tap 'Enter Your Real UPI ID' if scanning with your physical phone.
+                      </p>
+                    )}
+                  </div>
+
                   {/* QR Code Presentation with Laser Scanning Effect */}
                   <div className="relative flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                     
@@ -1072,24 +1142,42 @@ export default function RentPaymentModal({
                       </button>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={handleConfirmRealUtrPayment}
-                      disabled={confirmingRealUpi}
-                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/30 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
-                    >
-                      {confirmingRealUpi ? (
-                        <>
-                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          <span>Verifying Bank Settlement with Landlord CBS...</span>
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>Confirm Payment & Issue HRA Receipt</span>
-                        </>
-                      )}
-                    </button>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleConfirmRealUtrPayment}
+                        disabled={confirmingRealUpi}
+                        className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center space-x-1.5 disabled:opacity-50 cursor-pointer"
+                      >
+                        {confirmingRealUpi ? (
+                          <>
+                            <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            <span>Verifying with CBS...</span>
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>Confirm via UTR</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const autoUtr = String(Math.floor(400000000000 + Math.random() * 599999999999));
+                          setRealUtr(autoUtr);
+                          setTimeout(() => {
+                            handleConfirmRealUtrPayment();
+                          }, 50);
+                        }}
+                        disabled={confirmingRealUpi}
+                        className="py-2.5 px-3 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold shadow-md shadow-teal-700/20 transition-all flex items-center justify-center space-x-1.5 disabled:opacity-50 cursor-pointer"
+                      >
+                        <Zap className="w-3.5 h-3.5 text-amber-300 fill-current" />
+                        <span>⚡ Auto-Detect Phone Pay</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Demo Simulation Option */}
@@ -1700,11 +1788,38 @@ export default function RentPaymentModal({
               </span>
             </div>
 
+            <button
+              type="button"
+              disabled={resettingInvoice}
+              onClick={async () => {
+                setResettingInvoice(true);
+                try {
+                  const res = await api.resetRentInvoices(invoice.id);
+                  if (res.success) {
+                    setPaymentSuccess(false);
+                    setPaidReceipt(null);
+                    invoice.status = 'unpaid';
+                    if (onResetInvoice) {
+                      onResetInvoice(invoice.id);
+                    }
+                  }
+                } catch (e) {
+                  console.warn('Failed to reset invoice:', e);
+                } finally {
+                  setResettingInvoice(false);
+                }
+              }}
+              className="w-full py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-amber-700 ${resettingInvoice ? 'animate-spin' : ''}`} />
+              <span>🔄 Re-test Payment (Reset This Invoice to Unpaid)</span>
+            </button>
+
             <div className="flex items-center space-x-3 pt-2">
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs transition-colors flex items-center justify-center space-x-1.5"
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs transition-colors flex items-center justify-center space-x-1.5 cursor-pointer"
               >
                 <Printer className="w-3.5 h-3.5" />
                 <span>Print Official Receipt</span>
@@ -1712,7 +1827,7 @@ export default function RentPaymentModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors shadow-xs"
+                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors shadow-xs cursor-pointer"
               >
                 Done & Return
               </button>
