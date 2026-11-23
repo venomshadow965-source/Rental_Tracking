@@ -192,9 +192,28 @@ export default function RentPaymentModal({
     accountType: landlordProfile?.bankAccount?.accountType || "Current / Rent Settlement Account"
   };
 
-  // Generate standard UPI Payment Intent URI
-  const upiPayload = `upi://pay?pa=${landlordUpi}&pn=${encodeURIComponent(landlordName)}&am=${invoice.totalAmount}&cu=INR&tn=${encodeURIComponent(`Rent ${invoice.billingMonth} ${invoice.unitNumber}`)}&tr=${invoice.id}&mc=6513`;
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiPayload)}&margin=6`;
+  // Amount selection: full rent or test ₹1
+  const [payAmountType, setPayAmountType] = useState('full'); // 'full' | 'test_one'
+  const targetAmount = payAmountType === 'test_one' ? 1 : (invoice.totalAmount || 0);
+
+  // Clean NPCI-compliant UPI Intent URI (100% PhonePe, Google Pay, Paytm, BHIM, Cred compatible)
+  // Strict rules for PhonePe:
+  // 1. NO mc=... parameter for personal/standard VPAs (PhonePe throws "Unable to scan QR" if mc is present on personal VPA)
+  // 2. NO underscores in tr (NPCI alphanumeric only: [A-Za-z0-9])
+  // 3. tn note must be under 30 characters
+  // 4. pa must have clean literal @ handle without double encoding
+  const cleanLandlordUpi = landlordUpi.trim();
+  const cleanLandlordName = landlordName.trim();
+  const cleanNote = `Rent ${invoice.unitNumber || 'Bill'}`.slice(0, 25);
+  const cleanTr = `INV${invoice.id.replace(/\D/g, '').slice(-12) || Date.now().toString().slice(-8)}`;
+
+  // Standard P2P/P2M UPI intent URI
+  const upiPayload = `upi://pay?pa=${cleanLandlordUpi}&pn=${encodeURIComponent(cleanLandlordName)}&am=${targetAmount}&cu=INR&tn=${encodeURIComponent(cleanNote)}&tr=${cleanTr}`;
+
+  // High-resolution QR code (360x360 with clear contrast and error correction)
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=360x360&data=${encodeURIComponent(upiPayload)}&margin=4&format=png`;
+  const googleQrUrl = `https://chart.googleapis.com/chart?chs=360x360&cht=qr&chl=${encodeURIComponent(upiPayload)}&chld=M|2`;
+  const quickChartQrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(upiPayload)}&size=360`;
 
   // Fetch or fallback user linked bank accounts
   useEffect(() => {
@@ -866,25 +885,40 @@ export default function RentPaymentModal({
                     </div>
                   </div>
 
-                  {/* Option to enter real UPI ID for physical mobile phone testing */}
-                  <div className="p-3 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl text-xs space-y-2">
+                  {/* Real Landlord Bank & UPI Destination Card */}
+                  <div className="p-3 bg-gradient-to-r from-emerald-50 via-teal-50 to-slate-50 border border-emerald-300 rounded-xl text-xs space-y-2 shadow-xs">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-1.5 font-bold text-amber-950">
-                        <Smartphone className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                        <span>Scan with Physical Phone (GPay / PhonePe / Paytm)?</span>
+                      <div className="flex items-center space-x-1.5 font-bold text-emerald-950">
+                        <BadgeCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                        <span>Real Bank Destination (Where Tenant Funds Are Deposited)</span>
                       </div>
                       <button
                         type="button"
                         onClick={() => setIsEditingPayeeUpi(!isEditingPayeeUpi)}
-                        className="text-amber-800 underline font-bold text-[11px] cursor-pointer"
+                        className="text-emerald-800 underline font-bold text-[11px] cursor-pointer"
                       >
-                        {isEditingPayeeUpi ? 'Done' : 'Enter Your Real UPI ID'}
+                        {isEditingPayeeUpi ? 'Done' : 'Change Receiving Bank / UPI'}
                       </button>
                     </div>
-                    {isEditingPayeeUpi ? (
-                      <div className="space-y-1.5 pt-1 animate-in fade-in">
-                        <p className="text-[11px] text-amber-900 leading-snug">
-                          Live banking apps reject simulated VPAs. Enter your real registered UPI ID below to transfer real funds to your bank:
+
+                    <div className="text-[11px] text-slate-700 space-y-0.5">
+                      <div className="flex items-center space-x-1 font-bold text-slate-900">
+                        <span>Payee: {cleanLandlordName}</span>
+                        <span className="text-emerald-700 font-semibold">• {landlordBank.bank}</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-2 text-[10px] text-slate-600 font-mono">
+                        <span>A/c: <strong className="text-slate-800">{landlordBank.maskedAccount}</strong></span>
+                        <span>•</span>
+                        <span>IFSC: <strong className="text-slate-800">{landlordBank.ifsc}</strong></span>
+                        <span>•</span>
+                        <span>UPI ID: <strong className="text-emerald-800 font-bold">{cleanLandlordUpi}</strong></span>
+                      </div>
+                    </div>
+
+                    {isEditingPayeeUpi && (
+                      <div className="space-y-1.5 pt-2 border-t border-emerald-200 animate-in fade-in">
+                        <p className="text-[10px] text-slate-600 leading-snug">
+                          Update the Landlord receiving UPI ID. The QR code will update immediately and sync with the Landlord profile:
                         </p>
                         <div className="flex items-center space-x-1.5">
                           <input
@@ -892,7 +926,7 @@ export default function RentPaymentModal({
                             value={customPayeeUpi}
                             onChange={(e) => setCustomPayeeUpi(e.target.value.trim())}
                             placeholder={defaultLandlordUpi}
-                            className="flex-1 px-3 py-1.5 bg-white border border-amber-300 rounded-lg text-xs font-mono font-bold text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-amber-500"
+                            className="flex-1 px-3 py-1.5 bg-white border border-emerald-400 rounded-lg text-xs font-mono font-bold text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
                           />
                           <button
                             type="button"
@@ -915,66 +949,118 @@ export default function RentPaymentModal({
                                 setSavingPayeeUpi(false);
                               }
                             }}
-                            className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-xs transition-colors disabled:opacity-50 cursor-pointer"
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition-colors disabled:opacity-50 cursor-pointer"
                           >
-                            {savingPayeeUpi ? 'Saving...' : 'Update QR'}
+                            {savingPayeeUpi ? 'Saving...' : 'Save & Update'}
                           </button>
                         </div>
                       </div>
-                    ) : (
-                      <p className="text-[10px] text-amber-800">
-                        Current Beneficiary UPI: <strong className="font-mono text-amber-950">{landlordUpi}</strong> ({landlordName}). Tap 'Enter Your Real UPI ID' if scanning with your physical phone.
-                      </p>
                     )}
                   </div>
 
+                  {/* Amount Selector: Full Rent vs Test ₹1 */}
+                  <div className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 text-xs shadow-xs">
+                    <span className="font-bold text-slate-700 text-[11px] pl-1">Select Amount for QR:</span>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => setPayAmountType('full')}
+                        className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+                          payAmountType === 'full'
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        Full Rent: ₹{invoice.totalAmount?.toLocaleString('en-IN')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPayAmountType('test_one')}
+                        className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer flex items-center space-x-1 ${
+                          payAmountType === 'test_one'
+                            ? 'bg-amber-600 text-white shadow-xs'
+                            : 'bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100'
+                        }`}
+                        title="Scan on PhonePe to test a real ₹1.00 debit/credit between tenant and landlord bank accounts"
+                      >
+                        <Zap className="w-3 h-3 text-amber-300 fill-current" />
+                        <span>Test Real ₹1.00</span>
+                      </button>
+                    </div>
+                  </div>
+
                   {/* QR Code Presentation with Laser Scanning Effect */}
-                  <div className="relative flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="relative flex flex-col items-center justify-center p-5 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                     
                     {/* Laser Scanner Line when Scanning is active */}
                     {isScanning && (
                       <div className="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-emerald-500 to-transparent shadow-lg shadow-emerald-500/80 animate-bounce z-20" />
                     )}
 
-                    <div className="relative p-2 bg-white rounded-xl shadow-inner border border-slate-100">
+                    <div className="relative p-3 bg-white rounded-2xl shadow-md border-2 border-slate-200">
                       <img 
                         src={qrCodeUrl}
-                        alt={`UPI QR Code to pay ₹${invoice.totalAmount} to ${landlordUpi}`}
-                        className="w-44 h-44 object-contain rounded-lg"
+                        alt={`UPI QR Code to pay ₹${targetAmount} to ${cleanLandlordUpi}`}
+                        className="w-56 h-56 sm:w-60 sm:h-60 object-contain rounded-xl"
                         onError={(e) => {
-                          if (!e.target.dataset.triedFallback) {
-                            e.target.dataset.triedFallback = 'true';
-                            e.target.src = `https://chart.googleapis.com/chart?chs=220x220&cht=qr&chl=${encodeURIComponent(upiPayload)}&chld=M|2`;
+                          if (!e.target.dataset.triedGoogle) {
+                            e.target.dataset.triedGoogle = 'true';
+                            e.target.src = googleQrUrl;
+                          } else if (!e.target.dataset.triedQuick) {
+                            e.target.dataset.triedQuick = 'true';
+                            e.target.src = quickChartQrUrl;
                           }
                         }}
                       />
                     </div>
 
                     {/* Landlord Beneficiary VPA Info */}
-                    <div className="mt-2 text-center">
+                    <div className="mt-3 text-center space-y-1">
                       <div className="flex items-center justify-center space-x-1.5">
-                        <span className="text-xs font-bold text-slate-900">{landlordName}</span>
+                        <span className="text-xs font-bold text-slate-900">{cleanLandlordName}</span>
                         <span className="text-[10px] bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold px-1.5 rounded flex items-center space-x-0.5">
                           <BadgeCheck className="w-3 h-3 text-emerald-600" />
-                          <span>Verified Merchant (MCC: 6513)</span>
+                          <span>Verified Payee (NPCI UPI)</span>
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-center space-x-1 mt-0.5">
-                        <span className="font-mono text-xs text-slate-500">{landlordUpi}</span>
+                      <div className="flex items-center justify-center space-x-1">
+                        <span className="font-mono text-xs font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">{cleanLandlordUpi}</span>
                         <button
                           type="button"
-                          onClick={handleCopyUpi}
-                          className="p-1 text-slate-400 hover:text-emerald-700"
-                          title="Copy Landlord VPA"
+                          onClick={() => {
+                            navigator.clipboard.writeText(cleanLandlordUpi);
+                            setCopiedUpi(true);
+                            setTimeout(() => setCopiedUpi(false), 2000);
+                          }}
+                          className="p-1 text-slate-400 hover:text-emerald-700 cursor-pointer"
+                          title="Copy Landlord UPI ID"
                         >
                           {copiedUpi ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                         </button>
                       </div>
 
-                      <p className="text-[10px] text-slate-400 mt-1">
-                        Scan with Google Pay • PhonePe • Paytm • BHIM • Cred • Any UPI App
+                      <p className="text-[10px] text-slate-500">
+                        Scan with <strong>PhonePe</strong> • <strong>Google Pay</strong> • <strong>Paytm</strong> • <strong>BHIM</strong> • Any UPI App
                       </p>
+                    </div>
+
+                    {/* Direct Mobile App Deep Links */}
+                    <div className="grid grid-cols-2 gap-2 w-full pt-3 border-t border-slate-100 mt-3">
+                      <a
+                        href={`phonepe://pay?pa=${cleanLandlordUpi}&pn=${encodeURIComponent(cleanLandlordName)}&am=${targetAmount}&cu=INR&tn=${encodeURIComponent(cleanNote)}&tr=${cleanTr}`}
+                        className="py-2 px-2.5 bg-purple-700 hover:bg-purple-800 text-white rounded-xl text-[11px] font-bold shadow-xs flex items-center justify-center space-x-1 transition-all text-center"
+                      >
+                        <Smartphone className="w-3.5 h-3.5" />
+                        <span>Open in PhonePe ⚡</span>
+                      </a>
+                      <a
+                        href={upiPayload}
+                        className="py-2 px-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[11px] font-bold shadow-xs flex items-center justify-center space-x-1 transition-all text-center"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>GPay / Any UPI App</span>
+                      </a>
                     </div>
                   </div>
 
@@ -1089,7 +1175,7 @@ export default function RentPaymentModal({
                     ) : (
                       <>
                         <Zap className="w-4 h-4 text-amber-300 fill-current" />
-                        <span>⚡ Scan & Pay ₹{invoice.totalAmount?.toLocaleString('en-IN')} (Instant Credit to Landlord)</span>
+                        <span>⚡ Scan & Pay ₹{targetAmount?.toLocaleString('en-IN')} (Instant Credit to Landlord)</span>
                       </>
                     )}
                   </button>

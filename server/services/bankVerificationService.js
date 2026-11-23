@@ -130,7 +130,25 @@ export const UPI_PSP_MAP = {
   'axl': 'Axis Bank (PhonePe)',
   'upi': 'BHIM / NPCI Official Switch',
   'apl': 'Amazon Pay (Axis Bank)',
-  'cred': 'Axis Bank (CRED)'
+  'cred': 'Axis Bank (CRED)',
+  'idfcbank': 'IDFC FIRST Bank',
+  'airtel': 'Airtel Payments Bank',
+  'postbank': 'India Post Payments Bank (IPPB)',
+  'jupiteraxis': 'Jupiter (Axis Bank)',
+  'slice': 'Slice (Federal Bank)',
+  'fbl': 'Federal Bank',
+  'indus': 'IndusInd Bank',
+  'barodampay': 'Bank of Baroda',
+  'cnrb': 'Canara Bank',
+  'aubank': 'AU Small Finance Bank',
+  'kotak': 'Kotak Mahindra Bank',
+  'pnb': 'Punjab National Bank',
+  'sbi': 'State Bank of India',
+  'federal': 'Federal Bank',
+  'freecharge': 'Freecharge (Axis Bank)',
+  'mobikwik': 'MobiKwik',
+  'timecosmos': 'Cosmos Co-op Bank',
+  'dbs': 'DBS Bank India'
 };
 
 /**
@@ -435,8 +453,8 @@ export function verifyUpiQrPayload(payloadString) {
     const cu = params.get('cu') || 'INR'; // Currency
     const tn = params.get('tn'); // Note
     const tr = params.get('tr'); // Transaction / Invoice Ref
-    const mc = params.get('mc') || '6513'; // Merchant Category Code
-    const mcc = mc;
+    const mc = params.get('mc') || null; // Merchant Category Code (optional for standard P2P/P2M QR)
+    const mcc = mc || '6513';
 
     if (!pa) {
       return {

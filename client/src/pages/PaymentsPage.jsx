@@ -138,6 +138,7 @@ export default function PaymentsPage({
     setProfileErrorMsg('');
     setIfscLookupInfo(null);
     setIsEditingLandlordProfile(true);
+    setShowLandlordAuditModal(true);
   };
 
   const handleIfscLookup = async (ifscCode) => {
@@ -194,6 +195,7 @@ export default function PaymentsPage({
         setProfileSuccessMsg('🎉 Real Bank Account & UPI ID linked successfully! All tenant QR codes and mobile UPI links are now updated.');
         setTimeout(() => {
           setIsEditingLandlordProfile(false);
+          setShowLandlordAuditModal(false);
           setProfileSuccessMsg('');
         }, 1800);
       } else {

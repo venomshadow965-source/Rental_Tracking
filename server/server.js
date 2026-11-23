@@ -1497,12 +1497,19 @@ app.put('/api/landlord/bank-verification', (req, res) => {
   const payeeName = (registeredLegalName || name || 'Rajesh Sharma').trim();
   const cleanPan = (pan || 'ABCPS1234F').trim().toUpperCase();
 
+  const existingBalance = db.landlordSettlementProfile?.settledBalance || 0;
+  const existingSettlements = db.landlordSettlementProfile?.recentSettlements || [];
+  const existingLastSettled = db.landlordSettlementProfile?.lastSettledAt || null;
+
   db.landlordSettlementProfile = {
     landlordId: 'usr_admin',
     name: payeeName,
     registeredLegalName: payeeName,
     pan: cleanPan,
     panStatus: 'VERIFIED_ACTIVE_NSDL',
+    settledBalance: existingBalance,
+    recentSettlements: existingSettlements,
+    lastSettledAt: existingLastSettled,
     bankAccount: {
       bankName: resolvedBank,
       bankCode: cleanIfsc.slice(0, 4),
@@ -1562,6 +1569,14 @@ app.put('/api/landlord/bank-verification', (req, res) => {
       mcc: '6513'
     };
   }
+
+  // Update open unpaid invoices with the updated landlord details
+  db.rentInvoices.forEach(inv => {
+    if (inv.status === 'unpaid') {
+      inv.landlordName = payeeName;
+      inv.landlordPan = cleanPan;
+    }
+  });
 
   writeDb(db);
   res.json({
