@@ -367,7 +367,30 @@ export default function RentPaymentModal({
       }
     }
     loadLandlordProfile();
-    return () => { isMounted = false; };
+
+    const handleStorage = (e) => {
+      if (e.key === 'kirayasetu_landlord_profile' && e.newValue) {
+        try {
+          const updated = JSON.parse(e.newValue);
+          if (updated && (updated.upi || updated.bankAccount)) {
+            setLandlordProfile(updated);
+          }
+        } catch (err) {}
+      }
+    };
+
+    const handleCustom = (e) => {
+      if (e.detail) setLandlordProfile(e.detail);
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('landlord_profile_updated', handleCustom);
+
+    return () => { 
+      isMounted = false; 
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('landlord_profile_updated', handleCustom);
+    };
   }, [invoice?.id]);
 
   // 2. Validate UPI QR code payload integrity
@@ -936,8 +959,14 @@ export default function RentPaymentModal({
                               setSavingPayeeUpi(true);
                               try {
                                 const res = await api.updateLandlordBankVerification({
-                                  ...(landlordProfile || {}),
-                                  upi: { ...(landlordProfile?.upi || {}), vpa: customPayeeUpi }
+                                  name: landlordProfile?.registeredLegalName || landlordProfile?.name,
+                                  registeredLegalName: landlordProfile?.registeredLegalName || landlordProfile?.name,
+                                  upiId: customPayeeUpi,
+                                  bankName: landlordProfile?.bankAccount?.bankName,
+                                  accountNumber: landlordProfile?.bankAccount?.accountNumber,
+                                  ifsc: landlordProfile?.bankAccount?.ifsc,
+                                  branch: landlordProfile?.bankAccount?.branch,
+                                  pan: landlordProfile?.pan
                                 });
                                 if (res?.success && res?.landlord) {
                                   setLandlordProfile(res.landlord);

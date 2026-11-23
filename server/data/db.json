@@ -3,7 +3,7 @@
     {
       "id": "usr_admin",
       "role": "admin",
-      "name": "Rajesh Sharma",
+      "name": "RAJESH SHARMA",
       "email": "admin@kirayasetu.in",
       "password": "password123",
       "phone": "+91 98765 43210",
@@ -12,8 +12,8 @@
       "address": "House 42, 7th Main, 4th Block, Koramangala, Bengaluru, Karnataka - 560034",
       "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
       "bankAccount": {
-        "bankName": "State Bank of India (SBI)",
-        "accountHolder": "Rajesh Sharma",
+        "bankName": "State Bank of India",
+        "accountHolder": "RAJESH SHARMA",
         "accountNumber": "20394819287821",
         "maskedAccountNumber": "•••• •••• 7821",
         "ifsc": "SBIN0000800",
@@ -22,13 +22,10 @@
         "isVerified": true,
         "verifiedName": "RAJESH SHARMA",
         "pennyDropStatus": "ACTIVE",
-        "pennyDropUtr": "IMPS/PENNY/1795152981212",
         "rbiRecognized": true,
         "upiVerified": true,
         "vpa": "rajesh.landlord@okhdfcbank",
-        "mcc": "6513",
-        "settledBalance": 49000,
-        "lastSettledAt": "2026-11-23T04:54:30.962Z"
+        "mcc": "6513"
       },
       "bankAccounts": [
         {
@@ -192,7 +189,7 @@
     {
       "id": "prop_1",
       "landlordId": "usr_admin",
-      "landlordName": "Rajesh Sharma",
+      "landlordName": "RAJESH SHARMA",
       "name": "Palm Heights Apartments",
       "address": "8th Cross, 4th Block, Koramangala",
       "city": "Bengaluru",
@@ -264,7 +261,7 @@
     {
       "id": "prop_2",
       "landlordId": "usr_admin",
-      "landlordName": "Rajesh Sharma",
+      "landlordName": "RAJESH SHARMA",
       "name": "Shanti Niwas Villa",
       "address": "Plot 18, 12th Main, HAL 2nd Stage, Indiranagar",
       "city": "Bengaluru",
@@ -335,13 +332,13 @@
       "latitude": 13.0768,
       "longitude": 77.5583,
       "landlordId": "usr_admin",
-      "landlordName": "Rajesh Sharma",
+      "landlordName": "RAJESH SHARMA",
       "landlordPhone": "+91 98765 43210"
     },
     {
       "id": "prop_1794899782332",
       "landlordId": "usr_admin",
-      "landlordName": "Rajesh Sharma",
+      "landlordName": "RAJESH SHARMA",
       "landlordPhone": "+91 98765 43210",
       "name": "44, Pajaka",
       "propertyType": "Multi-family Residential Building",
@@ -383,7 +380,7 @@
       "unitId": "unit_sn_first",
       "unitNumber": "First Floor Duplex",
       "propertyAddress": "First Floor Duplex, 1st & 2nd, Shanti Niwas Villa, Plot 18, 12th Main, HAL 2nd Stage, Indiranagar, Bengaluru, Karnataka - 560038",
-      "landlordName": "Rajesh Sharma",
+      "landlordName": "RAJESH SHARMA",
       "landlordFatherName": "Late O. P. Sharma",
       "landlordAadhaar": "9876-5432-1098",
       "landlordPan": "ABCPS1234F",
@@ -437,7 +434,7 @@
       "unitId": "unit_sn_first",
       "unitNumber": "First Floor Duplex",
       "propertyAddress": "First Floor Duplex, 1st & 2nd, Shanti Niwas Villa, Plot 18, 12th Main, HAL 2nd Stage, Indiranagar, Bengaluru, Karnataka - 560038",
-      "landlordName": "Rajesh Sharma",
+      "landlordName": "RAJESH SHARMA",
       "landlordFatherName": "Late O. P. Sharma",
       "landlordAadhaar": "9876-5432-1098",
       "landlordPan": "ABCPS1234F",
@@ -490,7 +487,7 @@
       "unitId": "unit_302",
       "unitNumber": "Flat 302",
       "propertyAddress": "Flat 302, 3rd Floor, Palm Heights Apartments, 8th Cross, 4th Block, Koramangala, Bengaluru, Karnataka - 560034",
-      "landlordName": "Rajesh Sharma",
+      "landlordName": "RAJESH SHARMA",
       "landlordFatherName": "Late O. P. Sharma",
       "landlordAadhaar": "9876-5432-1098",
       "landlordPan": "ABCPS1234F",
@@ -543,7 +540,7 @@
       "unitId": "unit_104",
       "unitNumber": "Flat 104",
       "propertyAddress": "Flat 104, 1st Floor, Palm Heights Apartments, 8th Cross, 4th Block, Koramangala, Bengaluru, Karnataka - 560034",
-      "landlordName": "Rajesh Sharma",
+      "landlordName": "RAJESH SHARMA",
       "landlordFatherName": "Late O. P. Sharma",
       "landlordAadhaar": "9876-5432-1098",
       "landlordPan": "ABCPS1234F",
@@ -1212,7 +1209,7 @@
       "upiDetails": null,
       "landlordSettlement": {
         "name": "RAJESH SHARMA",
-        "bankName": "State Bank of India (SBI)",
+        "bankName": "State Bank of India",
         "accountNumber": "20394819287821",
         "maskedAccountNumber": "•••• •••• 7821",
         "ifsc": "SBIN0000800",
@@ -1227,7 +1224,7 @@
       "propertyId": "prop_1",
       "propertyName": "Palm Heights Apartments",
       "landlordId": "usr_admin",
-      "landlordName": "Rajesh Sharma",
+      "landlordName": "RAJESH SHARMA",
       "landlordPan": "ABCPS1234F",
       "tenantId": "usr_tenant_2",
       "tenantName": "Amit Patel",
@@ -1249,7 +1246,17 @@
       "transactionRef": null,
       "receiptNumber": "RCT-NOVEMBER-2026-104",
       "bankDetails": null,
-      "upiDetails": null
+      "upiDetails": null,
+      "landlordSettlement": {
+        "name": "RAJESH SHARMA",
+        "bankName": "State Bank of India",
+        "accountNumber": "20394819287821",
+        "maskedAccountNumber": "•••• •••• 7821",
+        "ifsc": "SBIN0000800",
+        "branch": "Bengaluru Main Branch",
+        "upiId": "rajesh.landlord@okhdfcbank",
+        "pan": "ABCPS1234F"
+      }
     },
     {
       "id": "inv_2026_11_usr_tenant_1794819900742",
@@ -1257,7 +1264,7 @@
       "propertyId": "prop_2",
       "propertyName": "Shanti Niwas Villa",
       "landlordId": "usr_admin",
-      "landlordName": "Rajesh Sharma",
+      "landlordName": "RAJESH SHARMA",
       "landlordPan": "ABCPS1234F",
       "tenantId": "usr_tenant_1794819900742",
       "tenantName": "Rohan Mehta",
@@ -1279,7 +1286,17 @@
       "transactionRef": null,
       "receiptNumber": "RCT-NOVEMBER-2026-01",
       "bankDetails": null,
-      "upiDetails": null
+      "upiDetails": null,
+      "landlordSettlement": {
+        "name": "RAJESH SHARMA",
+        "bankName": "State Bank of India",
+        "accountNumber": "20394819287821",
+        "maskedAccountNumber": "•••• •••• 7821",
+        "ifsc": "SBIN0000800",
+        "branch": "Bengaluru Main Branch",
+        "upiId": "rajesh.landlord@okhdfcbank",
+        "pan": "ABCPS1234F"
+      }
     },
     {
       "id": "inv_2026_10_usr_tenant_1",
@@ -3113,47 +3130,11 @@
   ],
   "landlordSettlementProfile": {
     "landlordId": "usr_admin",
-    "name": "Rajesh Sharma",
+    "name": "RAJESH SHARMA",
     "registeredLegalName": "RAJESH SHARMA",
     "pan": "ABCPS1234F",
     "panStatus": "VERIFIED_ACTIVE_NSDL",
-    "bankAccount": {
-      "bankName": "State Bank of India (SBI)",
-      "bankCode": "SBIN",
-      "accountNumber": "20394819287821",
-      "maskedAccountNumber": "•••• •••• 7821",
-      "accountType": "Current / Rent Settlement Account",
-      "ifsc": "SBIN0000800",
-      "branch": "Bengaluru Main Branch",
-      "city": "Bengaluru",
-      "micr": "560002002",
-      "isVerified": true,
-      "pennyDropStatus": "ACTIVE",
-      "pennyDropUtr": "IMPS/PENNY/1795152981212",
-      "pennyDropDate": "2026-11-20T05:36:21.213Z",
-      "verifiedBy": "RBI Core Banking Switch (CBS)"
-    },
-    "upi": {
-      "vpa": "rajesh.landlord@okhdfcbank",
-      "handle": "okhdfcbank",
-      "psp": "HDFC Bank Limited",
-      "merchantName": "Rajesh Sharma",
-      "registeredLegalName": "RAJESH SHARMA",
-      "mcc": "6513",
-      "mccCategory": "Real Estate / Residential Property Rental",
-      "isVerified": true,
-      "status": "OPERATIONAL_ACTIVE",
-      "qrStandard": "NPCI Bharat QR / UPI 2.0"
-    },
-    "verificationSummary": {
-      "isFullyVerified": true,
-      "tier": "Level 3 - Enterprise Certified Landlord",
-      "taxExemptionReceiptsEligible": true,
-      "auditReference": "RBI-KYC-981213",
-      "lastAuditedAt": "2026-11-20T05:36:21.213Z"
-    },
     "settledBalance": 49000,
-    "lastSettledAt": "2026-11-23T04:54:30.962Z",
     "recentSettlements": [
       {
         "id": "stl_1795409670962_2466",
@@ -3191,6 +3172,42 @@
         "status": "SETTLED_INSTANT_CREDIT",
         "settlementRail": "NPCI IMPS / UPI 2.0 Core Banking Switch"
       }
-    ]
+    ],
+    "lastSettledAt": "2026-11-23T04:54:30.962Z",
+    "bankAccount": {
+      "bankName": "State Bank of India",
+      "bankCode": "SBIN",
+      "accountNumber": "20394819287821",
+      "maskedAccountNumber": "•••• •••• 7821",
+      "accountType": "Current / Rent Settlement Account",
+      "ifsc": "SBIN0000800",
+      "branch": "Bengaluru Main Branch",
+      "city": "Bengaluru",
+      "micr": "560002002",
+      "isVerified": true,
+      "pennyDropStatus": "ACTIVE",
+      "pennyDropUtr": "IMPS/PENNY/1795435389516",
+      "pennyDropDate": "2026-11-23T12:03:09.516Z",
+      "verifiedBy": "RBI Core Banking Switch (CBS)"
+    },
+    "upi": {
+      "vpa": "rajesh.landlord@okhdfcbank",
+      "handle": "okhdfcbank",
+      "psp": "State Bank of India",
+      "merchantName": "RAJESH SHARMA",
+      "registeredLegalName": "RAJESH SHARMA",
+      "mcc": "6513",
+      "mccCategory": "Real Estate / Residential Property Rental",
+      "isVerified": true,
+      "status": "OPERATIONAL_ACTIVE",
+      "qrStandard": "NPCI Bharat QR / UPI 2.0"
+    },
+    "verificationSummary": {
+      "isFullyVerified": true,
+      "tier": "Level 3 - Enterprise Certified Landlord",
+      "taxExemptionReceiptsEligible": true,
+      "auditReference": "RBI-KYC-389516",
+      "lastAuditedAt": "2026-11-23T12:03:09.516Z"
+    }
   }
 }

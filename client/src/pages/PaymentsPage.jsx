@@ -123,7 +123,40 @@ export default function PaymentsPage({
       }
     }
     fetchLandlordBanking();
-    return () => { isMounted = false; };
+
+    const handleStorage = (e) => {
+      if (e.key === 'kirayasetu_landlord_profile' && e.newValue) {
+        try {
+          const updated = JSON.parse(e.newValue);
+          if (updated && (updated.upi || updated.bankAccount)) {
+            setLandlordProfile(updated);
+          }
+        } catch (err) {}
+      }
+    };
+
+    const handleCustomEvent = (e) => {
+      if (e.detail) {
+        setLandlordProfile(e.detail);
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchLandlordBanking();
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('landlord_profile_updated', handleCustomEvent);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => { 
+      isMounted = false; 
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('landlord_profile_updated', handleCustomEvent);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [currentUser?.id]);
 
   const handleStartEditLandlordProfile = () => {
@@ -192,6 +225,7 @@ export default function PaymentsPage({
         setLandlordProfile(res.landlord);
         setSavedLandlordProfile(res.landlord);
         if (onUpdateLandlordProfile) onUpdateLandlordProfile(res.landlord);
+        window.dispatchEvent(new CustomEvent('landlord_profile_updated', { detail: res.landlord }));
         setProfileSuccessMsg('🎉 Real Bank Account & UPI ID linked successfully! All tenant QR codes and mobile UPI links are now updated.');
         setTimeout(() => {
           setIsEditingLandlordProfile(false);
@@ -883,11 +917,17 @@ export default function PaymentsPage({
                               <span>Bank Details Verified (₹1 Penny Drop Active)</span>
                             </span>
 
-                            {invoice.landlordSettlement && (
-                              <span className="inline-flex items-center space-x-1 bg-blue-50 border border-blue-200 text-blue-900 px-2 py-0.5 rounded-md text-[10px] font-bold">
-                                <span>Credited to: {invoice.landlordSettlement.bankName} ({invoice.landlordSettlement.maskedAccountNumber})</span>
-                              </span>
-                            )}
+                            {(() => {
+                              const stl = (invoice.status === 'unpaid' && landlordProfile?.bankAccount)
+                                ? { bankName: landlordProfile.bankAccount.bankName, maskedAccountNumber: landlordProfile.bankAccount.maskedAccountNumber }
+                                : invoice.landlordSettlement;
+                              if (!stl) return null;
+                              return (
+                                <span className="inline-flex items-center space-x-1 bg-blue-50 border border-blue-200 text-blue-900 px-2 py-0.5 rounded-md text-[10px] font-bold">
+                                  <span>{invoice.status === 'paid' ? 'Credited to:' : 'Payable to:'} {stl.bankName} ({stl.maskedAccountNumber})</span>
+                                </span>
+                              );
+                            })()}
 
                             {invoice.transactionRef && (
                               <span className="inline-flex items-center space-x-1 bg-slate-100 text-slate-700 px-2 py-1 rounded-lg font-mono">

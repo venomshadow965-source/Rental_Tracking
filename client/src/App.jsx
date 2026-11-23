@@ -407,17 +407,22 @@ export default function App() {
     return res;
   };
 
-  // Periodic background sync for real-time notifications, rent payments & registered tenants
+  // Periodic background sync for real-time notifications, rent payments, landlord banking profile & registered tenants
   useEffect(() => {
     if (!currentUser) return;
     const interval = setInterval(async () => {
       try {
-        const [notifsRes, invsRes] = await Promise.all([
+        const [notifsRes, invsRes, llRes] = await Promise.all([
           api.getNotifications(),
-          api.getRentInvoices()
+          api.getRentInvoices(),
+          api.getLandlordBankVerification()
         ]);
         if (notifsRes.success && notifsRes.notifications) setNotifications(notifsRes.notifications);
         if (invsRes.success && invsRes.invoices) setInvoices(invsRes.invoices);
+        if (llRes?.success && llRes?.landlord) {
+          setLandlordProfile(llRes.landlord);
+          setSavedLandlordProfile(llRes.landlord);
+        }
 
         if (currentUser.role === 'admin') {
           const [usersRes, agrsRes] = await Promise.all([
@@ -433,6 +438,40 @@ export default function App() {
     }, 3500);
     return () => clearInterval(interval);
   }, [currentUser]);
+
+  // Multi-tab and window focus real-time synchronization for Landlord Profile changes
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'kirayasetu_landlord_profile' && e.newValue) {
+        try {
+          const updated = JSON.parse(e.newValue);
+          if (updated && (updated.upi || updated.bankAccount)) {
+            setLandlordProfile(updated);
+          }
+        } catch (err) {
+          // ignore
+        }
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        api.getLandlordBankVerification().then(res => {
+          if (res?.success && res?.landlord) {
+            setLandlordProfile(res.landlord);
+            setSavedLandlordProfile(res.landlord);
+          }
+        }).catch(() => {});
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
 
   // Notifications
   const handleMarkNotifRead = async (id) => {

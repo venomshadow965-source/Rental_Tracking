@@ -261,6 +261,7 @@ app.post('/api/auth/register', (req, res) => {
     const dueDate = '2026-11-20';
 
     if (!db.rentInvoices) db.rentInvoices = [];
+    const llProf = db.landlordSettlementProfile || getVerifiedLandlordBankingProfile();
     const existingInv = db.rentInvoices.find(inv => inv.tenantId === newUser.id && inv.billingMonthKey === billingMonthKey);
     if (!existingInv) {
       db.rentInvoices.unshift({
@@ -268,9 +269,9 @@ app.post('/api/auth/register', (req, res) => {
         invoiceNumber: `RENT/2026/11/${newUser.unitNumber?.replace(/\D/g, '') || '01'}`,
         propertyId: newUser.propertyId,
         propertyName: newUser.propertyName,
-        landlordId: targetLandlordId || 'usr_admin',
-        landlordName: assignedProp?.landlordName || 'Rajesh Sharma',
-        landlordPan: 'ABCPS1234F',
+        landlordId: targetLandlordId || llProf.landlordId || 'usr_admin',
+        landlordName: llProf.registeredLegalName || llProf.name || assignedProp?.landlordName || 'Rajesh Sharma',
+        landlordPan: llProf.pan || 'ABCPS1234F',
         tenantId: newUser.id,
         tenantName: newUser.name,
         tenantPhone: newUser.phone,
@@ -287,7 +288,17 @@ app.post('/api/auth/register', (req, res) => {
         dueDate,
         status: 'unpaid',
         paidAt: null,
-        paymentMethod: null
+        paymentMethod: null,
+        landlordSettlement: {
+          name: llProf.registeredLegalName || llProf.name || 'Rajesh Sharma',
+          bankName: llProf.bankAccount?.bankName || 'State Bank of India',
+          accountNumber: llProf.bankAccount?.accountNumber || '20394819287821',
+          maskedAccountNumber: llProf.bankAccount?.maskedAccountNumber || `•••• •••• ${(llProf.bankAccount?.accountNumber || '7821').slice(-4)}`,
+          ifsc: llProf.bankAccount?.ifsc || 'SBIN0000800',
+          branch: llProf.bankAccount?.branch || 'Bengaluru Main Branch',
+          upiId: llProf.upi?.vpa || 'rajesh.landlord@okhdfcbank',
+          pan: llProf.pan || 'ABCPS1234F'
+        }
       });
 
       // Notify new tenant about pending rent invoice
@@ -821,6 +832,7 @@ app.post('/api/agreements', (req, res) => {
   const dueDate = '2026-11-20';
 
   if (!db.rentInvoices) db.rentInvoices = [];
+  const llProf = db.landlordSettlementProfile || getVerifiedLandlordBankingProfile();
   const existingInv = db.rentInvoices.find(inv => inv.tenantId === tenantId && inv.billingMonthKey === billingMonthKey);
   if (!existingInv) {
     db.rentInvoices.unshift({
@@ -828,9 +840,9 @@ app.post('/api/agreements', (req, res) => {
       invoiceNumber: `RENT/2026/11/${unitNumber?.replace(/\D/g, '') || '01'}`,
       propertyId,
       propertyName,
-      landlordId: currentUser ? currentUser.id : 'usr_admin',
-      landlordName: landlordName || (currentUser ? currentUser.name : 'Rajesh Sharma'),
-      landlordPan: landlordPan || 'ABCPS1234F',
+      landlordId: currentUser ? currentUser.id : (llProf.landlordId || 'usr_admin'),
+      landlordName: llProf.registeredLegalName || llProf.name || landlordName || (currentUser ? currentUser.name : 'Rajesh Sharma'),
+      landlordPan: llProf.pan || landlordPan || 'ABCPS1234F',
       tenantId,
       tenantName,
       tenantPhone: tenantPhone || '',
@@ -847,7 +859,17 @@ app.post('/api/agreements', (req, res) => {
       dueDate,
       status: 'unpaid',
       paidAt: null,
-      paymentMethod: null
+      paymentMethod: null,
+      landlordSettlement: {
+        name: llProf.registeredLegalName || llProf.name || 'Rajesh Sharma',
+        bankName: llProf.bankAccount?.bankName || 'State Bank of India',
+        accountNumber: llProf.bankAccount?.accountNumber || '20394819287821',
+        maskedAccountNumber: llProf.bankAccount?.maskedAccountNumber || `•••• •••• ${(llProf.bankAccount?.accountNumber || '7821').slice(-4)}`,
+        ifsc: llProf.bankAccount?.ifsc || 'SBIN0000800',
+        branch: llProf.bankAccount?.branch || 'Bengaluru Main Branch',
+        upiId: llProf.upi?.vpa || 'rajesh.landlord@okhdfcbank',
+        pan: llProf.pan || 'ABCPS1234F'
+      }
     });
 
     if (tenantId) {
@@ -998,14 +1020,15 @@ app.post('/api/rent/invoices/generate', (req, res) => {
 
   if (!db.rentInvoices) db.rentInvoices = [];
 
+  const llProf = db.landlordSettlementProfile || getVerifiedLandlordBankingProfile();
   const invoice = {
     id: `inv_${billingMonthKey.replace('-', '_')}_${tenant.id}_${Date.now().toString().slice(-4)}`,
     invoiceNumber: `RENT/${billingMonthKey.replace('-', '/')}/${unitNum.replace(/\D/g, '') || '01'}-${Math.floor(10 + Math.random() * 90)}`,
     propertyId: prop ? prop.id : 'prop_1',
     propertyName: prop ? prop.name : 'Palm Heights Apartments',
-    landlordId: prop?.landlordId || 'usr_admin',
-    landlordName: prop?.landlordName || 'Rajesh Sharma',
-    landlordPan: 'ABCPS1234F',
+    landlordId: prop?.landlordId || llProf.landlordId || 'usr_admin',
+    landlordName: llProf.registeredLegalName || llProf.name || prop?.landlordName || 'Rajesh Sharma',
+    landlordPan: llProf.pan || 'ABCPS1234F',
     tenantId: tenant.id,
     tenantName: tenant.name,
     tenantPhone: tenant.phone || '',
@@ -1022,7 +1045,17 @@ app.post('/api/rent/invoices/generate', (req, res) => {
     dueDate,
     status: 'unpaid',
     paidAt: null,
-    paymentMethod: null
+    paymentMethod: null,
+    landlordSettlement: {
+      name: llProf.registeredLegalName || llProf.name || 'Rajesh Sharma',
+      bankName: llProf.bankAccount?.bankName || 'State Bank of India',
+      accountNumber: llProf.bankAccount?.accountNumber || '20394819287821',
+      maskedAccountNumber: llProf.bankAccount?.maskedAccountNumber || `•••• •••• ${(llProf.bankAccount?.accountNumber || '7821').slice(-4)}`,
+      ifsc: llProf.bankAccount?.ifsc || 'SBIN0000800',
+      branch: llProf.bankAccount?.branch || 'Bengaluru Main Branch',
+      upiId: llProf.upi?.vpa || 'rajesh.landlord@okhdfcbank',
+      pan: llProf.pan || 'ABCPS1234F'
+    }
   };
 
   db.rentInvoices.unshift(invoice);
@@ -1253,11 +1286,34 @@ app.post('/api/damages/:id/review', (req, res) => {
    RENT PAYMENTS & MONTHLY NOTIFICATIONS
    ======================================================== */
 app.get('/api/rent/invoices', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   const db = readDb();
   const userId = getActiveUserId(req);
   const currentUser = db.users.find(u => u.id === userId);
 
+  const profile = db.landlordSettlementProfile || getVerifiedLandlordBankingProfile();
   let invoices = db.rentInvoices || [];
+
+  // Live synchronize unpaid invoices with current landlord settlement profile
+  invoices.forEach(inv => {
+    if (inv.status === 'unpaid') {
+      inv.landlordName = profile.registeredLegalName || profile.name || 'Rajesh Sharma';
+      inv.landlordPan = profile.pan || 'ABCPS1234F';
+      inv.landlordSettlement = {
+        name: profile.registeredLegalName || profile.name || 'Rajesh Sharma',
+        bankName: profile.bankAccount?.bankName || 'State Bank of India',
+        accountNumber: profile.bankAccount?.accountNumber || '20394819287821',
+        maskedAccountNumber: profile.bankAccount?.maskedAccountNumber || `•••• •••• ${(profile.bankAccount?.accountNumber || '7821').slice(-4)}`,
+        ifsc: profile.bankAccount?.ifsc || 'SBIN0000800',
+        branch: profile.bankAccount?.branch || 'Bengaluru Main Branch',
+        upiId: profile.upi?.vpa || 'rajesh.landlord@okhdfcbank',
+        pan: profile.pan || 'ABCPS1234F'
+      };
+    }
+  });
+
   if (currentUser && currentUser.role === 'tenant') {
     invoices = invoices.filter(inv => inv.tenantId === userId);
   } else if (currentUser && currentUser.role === 'admin') {
@@ -1473,29 +1529,27 @@ app.get('/api/landlord/bank-verification', (req, res) => {
 // Update Landlord Real Bank Account & UPI ID
 app.put('/api/landlord/bank-verification', (req, res) => {
   const db = readDb();
-  const {
-    name,
-    registeredLegalName,
-    upiId,
-    bankName,
-    accountNumber,
-    ifsc,
-    branch,
-    accountType = 'Current / Rent Settlement Account',
-    pan
-  } = req.body;
+  const inputUpi = (req.body.upiId || req.body.upi?.vpa || '').trim();
+  const inputAccount = req.body.accountNumber || req.body.bankAccount?.accountNumber;
+  const inputIfsc = req.body.ifsc || req.body.bankAccount?.ifsc;
+  const inputBankName = req.body.bankName || req.body.bankAccount?.bankName;
+  const inputBranch = req.body.branch || req.body.bankAccount?.branch;
+  const inputPan = req.body.pan || 'ABCPS1234F';
+  const inputName = req.body.registeredLegalName || req.body.name || req.body.bankAccount?.accountHolder || 'Rajesh Sharma';
+  const accountType = req.body.accountType || req.body.bankAccount?.accountType || 'Current / Rent Settlement Account';
 
-  if (!upiId || !upiId.includes('@')) {
+  if (!inputUpi || !inputUpi.includes('@')) {
     return res.status(400).json({ success: false, message: 'Please provide a valid UPI ID (e.g., yourname@okhdfcbank or 9876543210@paytm).' });
   }
 
-  const cleanIfsc = (ifsc || 'SBIN0000800').trim().toUpperCase();
+  const cleanIfsc = (inputIfsc || 'SBIN0000800').trim().toUpperCase();
   const ifscData = validateIfsc(cleanIfsc);
-  const resolvedBank = (ifscData.isValid && ifscData.bankName) ? ifscData.bankName : (bankName || 'State Bank of India');
-  const resolvedBranch = (ifscData.isValid && ifscData.branch) ? ifscData.branch : (branch || 'Main Branch');
-  const cleanAccount = (accountNumber || '20394819287821').toString().replace(/\s+/g, '');
-  const payeeName = (registeredLegalName || name || 'Rajesh Sharma').trim();
-  const cleanPan = (pan || 'ABCPS1234F').trim().toUpperCase();
+  const resolvedBank = (ifscData.isValid && ifscData.bankName) ? ifscData.bankName : (inputBankName || 'State Bank of India');
+  const resolvedBranch = (ifscData.isValid && ifscData.branch) ? ifscData.branch : (inputBranch || 'Main Branch');
+  const cleanAccount = (inputAccount || '20394819287821').toString().replace(/\s+/g, '');
+  const payeeName = inputName.trim();
+  const cleanPan = inputPan.trim().toUpperCase();
+  const cleanUpi = inputUpi.toLowerCase();
 
   const existingBalance = db.landlordSettlementProfile?.settledBalance || 0;
   const existingSettlements = db.landlordSettlementProfile?.recentSettlements || [];
@@ -1527,8 +1581,8 @@ app.put('/api/landlord/bank-verification', (req, res) => {
       verifiedBy: 'RBI Core Banking Switch (CBS)'
     },
     upi: {
-      vpa: upiId.trim().toLowerCase(),
-      handle: upiId.trim().split('@')[1] || 'upi',
+      vpa: cleanUpi,
+      handle: cleanUpi.split('@')[1] || 'upi',
       psp: resolvedBank,
       merchantName: payeeName,
       registeredLegalName: payeeName,
@@ -1559,24 +1613,53 @@ app.put('/api/landlord/bank-verification', (req, res) => {
       maskedAccountNumber: `•••• •••• ${cleanAccount.slice(-4)}`,
       ifsc: cleanIfsc,
       branch: resolvedBranch,
-      upiId: upiId.trim().toLowerCase(),
+      upiId: cleanUpi,
       isVerified: true,
       verifiedName: payeeName,
       pennyDropStatus: 'ACTIVE',
       rbiRecognized: true,
       upiVerified: true,
-      vpa: upiId.trim().toLowerCase(),
+      vpa: cleanUpi,
       mcc: '6513'
     };
   }
 
+  // Synchronize properties and agreements with landlord legal entity name
+  if (Array.isArray(db.properties)) {
+    db.properties.forEach(p => {
+      if (p.landlordId === 'usr_admin' || !p.landlordId) {
+        p.landlordName = payeeName;
+      }
+    });
+  }
+  if (Array.isArray(db.agreements)) {
+    db.agreements.forEach(a => {
+      if (a.landlordId === 'usr_admin' || !a.landlordId) {
+        a.landlordName = payeeName;
+        a.landlordPan = cleanPan;
+      }
+    });
+  }
+
   // Update open unpaid invoices with the updated landlord details
-  db.rentInvoices.forEach(inv => {
-    if (inv.status === 'unpaid') {
-      inv.landlordName = payeeName;
-      inv.landlordPan = cleanPan;
-    }
-  });
+  if (Array.isArray(db.rentInvoices)) {
+    db.rentInvoices.forEach(inv => {
+      if (inv.status === 'unpaid') {
+        inv.landlordName = payeeName;
+        inv.landlordPan = cleanPan;
+        inv.landlordSettlement = {
+          name: payeeName,
+          bankName: resolvedBank,
+          accountNumber: cleanAccount,
+          maskedAccountNumber: `•••• •••• ${cleanAccount.slice(-4)}`,
+          ifsc: cleanIfsc,
+          branch: resolvedBranch,
+          upiId: cleanUpi,
+          pan: cleanPan
+        };
+      }
+    });
+  }
 
   writeDb(db);
   res.json({
